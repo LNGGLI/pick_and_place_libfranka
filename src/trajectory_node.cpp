@@ -104,16 +104,6 @@ int main(int argc, char **argv)
 
     sun::Cartesian_Independent_Traj cartesian_traj(line_traj, quat_traj);
 
-    //Accensione del controller
-    
-
-    // bool ok = switch_controller("pick_and_place_controller", "");
-
-    // if (ok)
-    //     std::cout << "Lo switch del controller è stato effettuato!" << std::endl;
-    // else
-    //     std::cout << "Lo switch del controller non è andato a buon fine " << std::endl;
-
     
     double Ts = 0.001*3.0; // periodo s
     double fs = 1.0/Ts; // frequenza Hz

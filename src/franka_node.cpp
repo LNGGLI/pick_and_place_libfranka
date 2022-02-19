@@ -8,6 +8,11 @@
 #include <iostream>
 #include <vector>
 
+// Custom functions
+
+#include "pick_and_place_libfranka/franka_node.h"
+
+
 // Libreria Eigen Dense
 #include <Eigen/Dense>
 
@@ -16,9 +21,20 @@
 #include <franka/exception.h>
 #include <franka/model.h>
 #include <franka/robot.h>
+#include <franka/robot_state.h>
 
 // Contiene definizioni di funzioni utili, presente in libfranka
 #include <pick_and_place_libfranka/examples_common.h>
+
+
+// Utils
+#include <ros/ros.h>
+#include <pick_and_place_libfranka/check_realtime.h>
+#include <TooN/TooN.h>
+
+// Messaggi
+
+#include <pick_and_place_libfranka/TrajectoryPointStamped.h>
 
 
 /**
@@ -41,13 +57,24 @@
  * https://eigen.tuxfamily.org/dox/AsciiQuickReference.txt 
  */
 
+using namespace franka_control;
 
 int main(int argc, char** argv) {
 
-    if (argc != 2) {
-        std::cerr << "Specificare l'indirizzo IP del robot." << std::endl;
-        return -1;
+
+    
+    ros::init(argc, argv, "frankalib_controller_node");
+    ros::NodeHandle nh;
+
+    std::string robot_IP;
+    if (!nh.getParam("robot_ip", robot_IP))
+    {
+      ROS_ERROR_STREAM("Specificare l'indirizzo IP del robot.");
+      return false;
     }
+
+    ros::Publisher state_pb = nh.advertise<pick_and_place_libfranka::TrajectoryPointStamped>("/joint_state", 1);
+    ros::Subscriber command_sub = nh.subscribe<pick_and_place_libfranka::TrajectoryPointStamped>("/joint_commands", 1 ,&franka_control::CommandCB);
 
     try {
       // Documentazione classe franka::Robot https://frankaemika.github.io/libfranka/classfranka_1_1Robot.html
@@ -55,7 +82,7 @@ int main(int argc, char** argv) {
       // Documentazione classe franka::RobotState: https://frankaemika.github.io/libfranka/structfranka_1_1RobotState.html
 
       // Connessione al robot 
-        franka::Robot robot(argv[1]);
+        franka::Robot robot(robot_IP);
         
       // Set collision behavior (https://frankaemika.github.io/libfranka/classfranka_1_1Robot.html#a168e1214ac36d74ac64f894332b84534)
         setDefaultBehavior(robot);
@@ -63,35 +90,31 @@ int main(int argc, char** argv) {
       // Modello cinematico e dinamico del robot
         franka::Model model = robot.loadModel();
 
-      // Lettura dello stato attuale del robot
+      // Lettura dello stato attuale del robot e invio su topic /joint_state
         franka::RobotState initial_state = robot.readOnce();
 
-      
-      
-      // A partire da una variabile robot_state si possono ottenere diverse informazioni, tra cui:
-      // initial_state.O_T_EE è la matrice di trasformazione omogenea che descrive la posa 
-      // dell'organo terminale rispetto alla terna zero del robot. 
-      
-        Eigen::Affine3d initial_transform(Eigen::Matrix4d::Map(initial_state.O_T_EE.data()));
+        pick_and_place_libfranka::TrajectoryPointStamped state_msg; 
+        state_msg.point.positions.resize(7);
+        state_msg.header.stamp = ros::Time::now();
 
-      // Estrazione della posizione dalla matrice di trasformazione
-        Eigen::Vector3d position_d(initial_transform.translation());
+        std::array<double,7> q_init = initial_state.q;
+        for(int i = 0; i < 7; i++){
+          state_msg.point.positions[i] = q_init[i];
+        }
 
-      // Estrazione dell'orientamento in forma di quaternione a partire dalla matrice di rotazione
-        Eigen::Quaterniond orientation_d(initial_transform.linear());
+        state_pb.publish(state_msg);
 
-      // Inizializzazione variabile time
-        double time = 0.0;
 
-      // Definizione della callback per il loop di controllo in coppia:
-      // L'esempio definisce una lambda function ma nulla vieta di creare una funzione esterna. 
+
+       double time = 0.0;
+
       
         auto generic_callback = [&](const franka::RobotState& robot_state,franka::Duration duration) -> franka::Torques {
 
-      /** Inizio callback: durante il loop di controllo la callback viene eseguita con una frequenza
+       /** Inizio callback: durante il loop di controllo la callback viene eseguita con una frequenza
        * di 1Khz. La variabile robot_state viene implicitamente aggiornata ogni loop con la funzione robot.readOnce() **/
       
-      // Update time: https://frankaemika.github.io/libfranka/classfranka_1_1Duration.html
+       // Update time: https://frankaemika.github.io/libfranka/classfranka_1_1Duration.html
         time += duration.toSec();
       
       
