@@ -122,8 +122,8 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES pick_and_place_libfranka
+  INCLUDE_DIRS include
+  LIBRARIES Panda examples_common
 #  CATKIN_DEPENDS other_catkin_pkg
 #  DEPENDS system_lib
 )
@@ -164,6 +164,7 @@ src/Panda.cpp)
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(franka_node src/franka_node.cpp)
+add_executable(trajectory_node_libfranka src/trajectory_node.cpp)
 
 
 
@@ -182,9 +183,14 @@ add_executable(franka_node src/franka_node.cpp)
    ${catkin_LIBRARIES}
    ${Franka_LIBRARIES}
    examples_common
-   Panda
  )
 
+ target_link_libraries(trajectory_node_libfranka
+   ${catkin_LIBRARIES}
+   ${Franka_LIBRARIES}
+   examples_common
+   Panda
+ )
 #############
 ## Install ##
 #############

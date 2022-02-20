@@ -9,10 +9,10 @@
 
 // Server , Actions
 #include <actionlib/client/simple_action_client.h>
+#include <pick_and_place_libfranka/SetState.h>
 
 // Utils
 #include <ros/ros.h>
-#include <franka_gripper/franka_gripper.h>
 #include <pick_and_place_libfranka/check_realtime.h>
 #include <TooN/TooN.h>
 
@@ -31,7 +31,7 @@
 #include <trajectory_msgs/MultiDOFJointTrajectoryPoint.h>
 #include <pick_and_place_libfranka/TrajectoryPointStamped.h>
 
-#include <pick_and_place_libfranka/SetState.h>
+
 
 /*rosbag record /fkine /joint_commands /franka_state_controller/franka_states /franka_state_controller/joint_states_desired errors /cartesian_trajectory_command*/
 
@@ -51,7 +51,7 @@ int main(int argc, char **argv)
         throw std::runtime_error("ERROR IN set_realtime_SCHED_FIFO");
     
 
-    ros::Publisher command_pb = nh.advertise<trajectory_msgs::JointTrajectoryPoint>(
+    ros::Publisher command_pb = nh.advertise<pick_and_place_libfranka::TrajectoryPointStamped>(
         "/joint_commands", 1);
     
     /*ros::Publisher traj_pb = nh.advertise<trajectory_msgs::MultiDOFJointTrajectoryPoint>(
@@ -87,7 +87,7 @@ int main(int argc, char **argv)
      
     TooN::Vector<3> pi = TooN::makeVector(initial_pose[0][3],initial_pose[1][3],initial_pose[2][3]);//initial_transform.get_translation();                     // initial_position
 
-     sun::UnitQuaternion init_quat(initial_pose); // initial_transform.get_rotation().get_matrix()); // initial orientation
+    sun::UnitQuaternion init_quat(initial_pose); // initial_transform.get_rotation().get_matrix()); // initial orientation
     TooN::Matrix<3, 3> Rot_des = TooN::Data(1,0,0,0,0,1,0,-1,0); 
     std::cout << Rot_des;
     sun::UnitQuaternion final_quat(Rot_des);
@@ -168,10 +168,9 @@ int main(int argc, char **argv)
                         );
         
         bool limits_exceeded = panda.exceededHardJointLimits(panda.joints_DH2Robot(qDH_k));
-        pick_and_place::TrajectoryPointStamped command_msg;
-        geometry_msgs::Pose error_msg;
+        pick_and_place_libfranka::TrajectoryPointStamped command_msg;     
         trajectory_msgs::MultiDOFJointTrajectoryPoint traj_msg;
-        trajectory_msgs::MultiDOFJointTrajectoryPoint fkine_msg;
+    
 
         // Pubblicazione comando in spazio giunti 
         if(!limits_exceeded){
@@ -180,36 +179,15 @@ int main(int argc, char **argv)
                 command_msg.point.positions.push_back(qDH_k[i]);
                 command_msg.point.velocities.push_back(qdot[i]);
             }
-            }
-            else 
-                throw std::runtime_error("Limiti di giunto superati");
+            command_msg.finished = false;
+        }
+        else{
+            throw std::runtime_error("Limiti di giunto superati");
+        }
 
-            command_pb.publish(command_msg);
+        command_pb.publish(command_msg);
 
-            // // Pubblicazione errore
-            // error_msg.position.x = error[0];
-            // error_msg.position.y = error[1];
-            // error_msg.position.z = error[2];
-
-            // error_msg.orientation.x = error[3];
-            // error_msg.orientation.y = error[4];
-            // error_msg.orientation.z = error[5];
-
-            // error_pb.publish(error_msg);
-            
-            
-            
-
-            // // Pubblicazione comando in cartesiano
-            
-            // traj_msg.transforms.resize(1);
-            // traj_msg.velocities.resize(1);
-            // traj_msg.time_from_start = ros::Duration(t);
         
-            
-            // traj_msg.transforms[0].translation.x = posizione_d[0];
-            // traj_msg.transforms[0].translation.y = posizione_d[1];
-            // traj_msg.transforms[0].translation.z = posizione_d[2];
 
             // // Comando in orientamento
             // traj_msg.transforms[0].rotation.x = unit_quat_d.getS();
@@ -238,9 +216,19 @@ int main(int argc, char **argv)
             // fkine_pb.publish(fkine_msg);
             
 
-            loop_rate.sleep();
+        loop_rate.sleep();
 
     }
+
+    // fine traiettoria, invio messaggio con finished = true
+    pick_and_place_libfranka::TrajectoryPointStamped final_msg;
+    for(int i = 0; i< 7; i++){
+        final_msg.point.positions.push_back(qDH_k[i]);
+        final_msg.point.velocities.push_back(qdot[i]);
+    }
+    final_msg.finished = true;
+
+    command_pb.publish(final_msg);
 
     return 0;
 }

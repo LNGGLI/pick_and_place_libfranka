@@ -9,6 +9,9 @@
 #include <franka/robot_state.h>
 
 
+// utils
+#include <ros/ros.h>
+
 
 // Messaggi
 
@@ -17,19 +20,22 @@
 namespace franka_control{
 
 std::array<double,7> q_command_;
+std::array<double,7> qp_command_;
+bool motion_finished = false;
 
 
 
 franka::JointPositions joint_position_callback(const franka::RobotState &, franka::Duration){
 
-  //if (time >= 2 * time_max) {
+  ros::spinOnce(); // lettura dei comandi attraverso CommandCB
+  franka::JointPositions q_des(q_command_);
 
-    // std::cout << std::endl << "Finished motion, shutting down example" << std::endl;
-    // return franka::MotionFinished(velocities);
-
-  //}
-  franka::JointPositions q_d(q_command_);
-  return q_d;
+  if(motion_finished){
+    return franka::MotionFinished(q_des);
+  }
+  else{
+    return q_des;
+  }
 
 }
 
@@ -37,7 +43,12 @@ void CommandCB(pick_and_place_libfranka::TrajectoryPointStampedConstPtr msg){
 
   for(int i = 0 ; i < 7; i++){
     q_command_[i] = msg->point.positions[i];
+    qp_command_[i] = msg->point.velocities[i];
   }
+
+  motion_finished = msg->finished;
+
+
   
 
 }

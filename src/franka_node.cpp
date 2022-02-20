@@ -53,63 +53,61 @@
 using namespace franka_control;
 
 int main(int argc, char** argv) {
-
-
     
-    ros::init(argc, argv, "frankalib_controller_node");
+    ros::init(argc, argv, "libfranka_controller_node");
     ros::NodeHandle nh;
 
     std::string robot_IP;
     if (!nh.getParam("robot_ip", robot_IP))
     {
       ROS_ERROR_STREAM("Specificare l'indirizzo IP del robot.");
-      return false;
+      return -1;
     }
     
     ros::Subscriber command_sub = nh.subscribe<pick_and_place_libfranka::TrajectoryPointStamped>("/joint_commands", 1 ,&franka_control::CommandCB);
     ros::ServiceClient client_setstate = nh.serviceClient<pick_and_place_libfranka::SetState>("set_state"); 
 
+    client_setstate.waitForExistence(); // Attende che venga istanziato il servizio
 
 
   try {
     
-
-      // Connessione al robot 
-        franka::Robot robot(robot_IP);
+    // Connessione al robot 
+      franka::Robot robot(robot_IP);
         
-      // Set collision behavior (https://frankaemika.github.io/libfranka/classfranka_1_1Robot.html#a168e1214ac36d74ac64f894332b84534)
-        setDefaultBehavior(robot);
+    // Set collision behavior (https://frankaemika.github.io/libfranka/classfranka_1_1Robot.html#a168e1214ac36d74ac64f894332b84534)
+      setDefaultBehavior(robot);
 
-      // Modello cinematico e dinamico del robot
-        franka::Model model = robot.loadModel();
+    // Modello cinematico e dinamico del robot
+      franka::Model model = robot.loadModel();
 
-      // Lettura dello stato attuale del robot e invio tramite srv al trajectory planner
-        franka::RobotState initial_state = robot.readOnce();
+    // Lettura dello stato attuale del robot e invio tramite srv al trajectory planner
+      franka::RobotState initial_state = robot.readOnce();
+      pick_and_place_libfranka::SetState setstate_msg;
         
-        pick_and_place_libfranka::SetState setstate_msg;
+      for(int i = 0; i < 7; i++){
+          setstate_msg.request.initial_configuration[i] = initial_state.q[i];
+      }
         
-        for(int i = 0; i < 7; i++){
-           setstate_msg.request.initial_configuration[i] = initial_state.q[i];
-        }
-
-        if(client_setstate.call(setstate_msg)){
-          ROS_INFO("Success: %d. Messagge: %s", setstate_msg.response.success,setstate_msg.response.error.c_str());
-        }
-        else{
-          ROS_INFO("Failed to call service SetState");
-        }
-        
-
+      if(client_setstate.call(setstate_msg)){
+        ROS_INFO("Success: %d. Messagge: %s", setstate_msg.response.success,setstate_msg.response.error.c_str());
+      }
+      else{
+        ROS_INFO("Failed to call service SetState");
+        return -1;
+      }
         
     
-    // Avvio del loop di controllo:
     // Doc: https://frankaemika.github.io/libfranka/classfranka_1_1Robot.html#a5b5ba0a4f2bfd20be963b05622e629e1
-        robot.control(joint_position_callback);
+      robot.control(joint_position_callback);
 
-  } catch (const franka::Exception& ex) {
+  } 
+
+  catch (const franka::Exception& ex)
+  {
           // print exception
           std::cout << ex.what() << std::endl;
-      }
+  }
 
       return 0;
 }
