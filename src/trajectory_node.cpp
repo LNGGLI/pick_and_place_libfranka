@@ -24,12 +24,14 @@
 #include <sun_traj_lib/Line_Segment_Traj.h>
 #include <sun_traj_lib/Rotation_Const_Axis_Traj.h>
 
-// Messages
+// Messages e Srv
 #include <trajectory_msgs/JointTrajectoryPoint.h>
 #include <franka_msgs/FrankaState.h>
 #include <geometry_msgs/Pose.h>
 #include <trajectory_msgs/MultiDOFJointTrajectoryPoint.h>
 #include <pick_and_place_libfranka/TrajectoryPointStamped.h>
+
+#include <pick_and_place_libfranka/SetState.h>
 
 /*rosbag record /fkine /joint_commands /franka_state_controller/franka_states /franka_state_controller/joint_states_desired errors /cartesian_trajectory_command*/
 
@@ -52,36 +54,34 @@ int main(int argc, char **argv)
     ros::Publisher command_pb = nh.advertise<trajectory_msgs::JointTrajectoryPoint>(
         "/joint_commands", 1);
     
-    ros::Publisher traj_pb = nh.advertise<trajectory_msgs::MultiDOFJointTrajectoryPoint>(
+    /*ros::Publisher traj_pb = nh.advertise<trajectory_msgs::MultiDOFJointTrajectoryPoint>(
         "/cartesian_trajectory_command", 1);
     
     ros::Publisher fkine_pb = nh.advertise<trajectory_msgs::MultiDOFJointTrajectoryPoint>(
         "/fkine", 1);
 
-    ros::Publisher error_pb = nh.advertise<geometry_msgs::Pose>("errors", 1);
+    ros::Publisher error_pb = nh.advertise<geometry_msgs::Pose>("errors", 1);*/
 
-    ros::Subscriber pose_sub = nh.subscribe<franka_msgs::FrankaState>(
-        "/franka_state_controller/franka_states", 1, stateCB);
+    // Servizio per settare la configurazione iniziale nel trajectory planner.
 
-
+    ros::ServiceServer service_setstate = nh.advertiseService("set_state",set_state);
+    ROS_INFO("Trajectory node partito, in attesa della configurazione iniziale.");
     
     while (!initial_read && ros::ok())
     {
         ros::spinOnce();
         ros::Duration(0.2).sleep();
-        std::cout << "\nIn attesa di leggere la posa iniziale\n";
     }
 
-    std::cout << "Configurazione iniziale (initial_transform e initial_config) acquisita. \n";
+    std::cout << "Configurazione iniziale (initial_conf) acquisita. \n";
 
-    // initial_transform è una Toon::SE3
     TooN::Matrix<4,4,double> n_T_e (TooN::Data(0.7071, 0.7071,   0.0, 0.0,
                                                 -0.7071,  0.7071,  0.0, 0.0,
                                                 0.0,   0.0,    1.0, 0.1034,
                                                 0.0,   0.0,    0.0, 1.0));
 
     sun::Panda panda(n_T_e,1.0,"panda");
-    panda.display();
+    //panda.display();
     TooN::Matrix<4,4,double> initial_pose = panda.fkine(initial_conf);
     
      
