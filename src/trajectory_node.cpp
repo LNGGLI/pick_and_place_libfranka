@@ -87,50 +87,58 @@ int main(int argc, char **argv)
      
     TooN::Vector<3> pi = TooN::makeVector(initial_pose[0][3],initial_pose[1][3],initial_pose[2][3]);//initial_transform.get_translation();                     // initial_position
 
-    sun::UnitQuaternion init_quat(initial_pose);// initial_transform.get_rotation().get_matrix()); // initial orientation
+     sun::UnitQuaternion init_quat(initial_pose); // initial_transform.get_rotation().get_matrix()); // initial orientation
+    TooN::Matrix<3, 3> Rot_des = TooN::Data(1,0,0,0,0,1,0,-1,0); 
+    std::cout << Rot_des;
+    sun::UnitQuaternion final_quat(Rot_des);
+    sun::UnitQuaternion delta_quat = final_quat*inv(init_quat); // errore in terna base
+    sun::AngVec angvec = delta_quat.toangvec();
 
-    std::cout << "Generazione della traiettoria in cartesiano \n";
+    // Nota: la libreria vuole delta_quat definita in terna base.
 
     // Generazione della traiettoria su primitiva di percorso di tipo segmento:
 
-    // TODO: scegliere punto finale
-    TooN::Vector<3, double> pf({0.3, 0.3, 0.5});
-    TooN::Vector<3, double> axis({0, 0, 1});
-    
-    sun::Quintic_Poly_Traj qp(Tf, 0, 1); // polinomio quintico utilizzato sia per line_traj che theta_traj
-    
-    sun::Line_Segment_Traj line_traj(pi, pf, qp);
-    sun::Rotation_Const_Axis_Traj quat_traj(init_quat, axis, qp);
+    std::cout << "Generazione della traiettoria in cartesiano \n";
 
+    TooN::Vector<3, double> pf({0.5,0.5,0.5});
+    //TooN::Vector<3, double> pf({0.655105430989015, 0.1096259365986445, 0.06857646438044779-0.01});
+
+    sun::Quintic_Poly_Traj qp_position(Tf, 0.0, 1.0); // polinomio quintico utilizzato per line_traj 
+    sun::Quintic_Poly_Traj qp_orientation(Tf, 0.0, angvec.getAng()); // polinomio quintico utilizzato per quat_traj
+    
+    
+    sun::Line_Segment_Traj line_traj(pi, pf, qp_position);
+    sun::Rotation_Const_Axis_Traj quat_traj(init_quat, angvec.getVec(), qp_orientation);
+    
+    // Nota: la traiettoria in orientamento è quella definita dal Delta_quat.
+    // Perchè vogliamo andare da init_quat (orientamento iniziale) a final_quat (orientamento finale).
+    // Il metodo getquaternion(t) restituisce DeltaQuat(t) * init_quat. 
+    
     sun::Cartesian_Independent_Traj cartesian_traj(line_traj, quat_traj);
+    
 
-    
-    double Ts = 0.001*3.0; // periodo s
-    double fs = 1.0/Ts; // frequenza Hz
-    
+    // Parametri CLIK
+    double Ts = 0.001;  // periodo s
+    double fs = 1 / Ts; // frequenza Hz
 
     ros::Rate loop_rate(fs); // Hz
-    double begin = ros::Time::now().toSec();
-    double t;
-    
 
-    std:: cout << "Inizia moto " << std::endl;
-
-    double gain = 0.5*fs;
-    TooN::Vector<> qdot = TooN::Zeros(7); // velocità di giunto ritorno
-    TooN::Vector<6,int> mask = TooN::Ones; // maschera, se l'i-esimo elemento è zero allora l'i-esima componente cartesiana non verrà usata per il calcolo dell'errore
-    TooN::Vector<3> xd = TooN::Zeros; // velocità in translazione desiderata
-    TooN::Vector<3> w = TooN::Zeros; // velocità angolare desiderata
-    TooN::Vector<6> error = TooN::Ones; // questo va "resettato" ogni volta prima del clik
+    double gain = 0.5 * fs;
+    TooN::Vector<> qdot = TooN::Zeros(7);   // velocità di giunto ritorno
+    TooN::Vector<6, int> mask = TooN::Ones; // maschera, se l'i-esimo elemento è zero allora l'i-esima componente cartesiana non verrà usata per il calcolo dell'errore
+    TooN::Vector<3> xd = TooN::Zeros;       // velocità in translazione desiderata
+    TooN::Vector<3> w = TooN::Zeros;        // velocità angolare desiderata
+    TooN::Vector<6> error = TooN::Ones;     // questo va "resettato" ogni volta prima del clik
     TooN::Vector<7> qDH_k = initial_conf;
     sun::UnitQuaternion oldQ = init_quat;
 
     sun::UnitQuaternion unit_quat_d = init_quat;
-    TooN::Vector<3,double> posizione_d = pi;
+    TooN::Vector<3, double> posizione_d = pi;
 
-    begin = ros::Time::now().toSec();
-    bool start = true;
+    double begin = ros::Time::now().toSec();
+    double t;
 
+    std::cout << "Inizia moto " << std::endl;
 
     while (ros::ok() && !cartesian_traj.isCompleate(t))  // && !cartesian_traj.isCompleate(t)
     {
