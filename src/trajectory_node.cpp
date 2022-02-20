@@ -45,7 +45,7 @@ int main(int argc, char **argv)
     
     
     if (!check_realtime()) 
-      throw std::runtime_error("REALTIME NOT AVAILABLE");
+        throw std::runtime_error("REALTIME NOT AVAILABLE");
 
     if (!set_realtime_SCHED_FIFO()) 
         throw std::runtime_error("ERROR IN set_realtime_SCHED_FIFO");

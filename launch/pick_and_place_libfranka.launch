@@ -5,7 +5,7 @@
   
   
   <!-- Run del planner -->
-  <node name="traj_planner" type="trajectory_node" pkg="pick_and_place_libfranka" output="screen"/>
+  <node name="traj_planner" type="trajectory_node_libfranka" pkg="pick_and_place_libfranka" output="screen"/>
 
   <!-- Run del loop di controllo-->
   <node name="libfranka_control" type="franka_node" pkg="pick_and_place_libfranka" output="screen"/>
