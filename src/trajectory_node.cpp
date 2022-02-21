@@ -51,6 +51,7 @@ int main(int argc, char **argv) {
       nh.advertise<pick_and_place_libfranka::TrajectoryPointStamped>(
           "/joint_commands", 1);
 
+
   /*ros::Publisher traj_pb =
   nh.advertise<trajectory_msgs::MultiDOFJointTrajectoryPoint>(
       "/cartesian_trajectory_command", 1);
@@ -75,6 +76,7 @@ int main(int argc, char **argv) {
 
   std::cout << "\n Configurazione iniziale (initial_conf_) acquisita. \n";
 
+
   // Invio configurazione iniziale
   double begin_test = ros::Time::now().toSec();
   double t_test = 0.0;
@@ -95,8 +97,6 @@ int main(int argc, char **argv) {
     loop_rate_test.sleep();
   }
 
-  if(!ros::ok())
-    std::cout << "Il trajectory node ha avuto un problema \n"; 
   pick_and_place_libfranka::TrajectoryPointStamped command_msg;
 
   for (int i = 0; i < 7; i++)
@@ -108,16 +108,6 @@ int main(int argc, char **argv) {
 
 
   return 0;
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -245,7 +235,7 @@ int main(int argc, char **argv) {
       throw std::runtime_error("Limiti di giunto superati");
     }
 
-    // command_pb.publish(command_msg);
+    command_pb.publish(command_msg);
 
     // // Comando in orientamento
     // traj_msg.transforms[0].rotation.x = unit_quat_d.getS();
@@ -277,17 +267,14 @@ int main(int argc, char **argv) {
   }
 
   // fine traiettoria, invio messaggio con finished = true
-  std::cout << "Moto terminato \n";
+  std::cout << "Moto terminato lato trajectory planner\n";
   pick_and_place_libfranka::TrajectoryPointStamped final_msg;
 
-  //   for (int i = 0; i < 7; i++) {
-  //     final_msg.point.positions.push_back(qDH_k[i]);
-  //     final_msg.point.velocities.push_back(qdot[i]);
-  //   }
-
   for (int i = 0; i < 7; i++) {
-    final_msg.point.positions.push_back(initial_conf_[i]);
+    final_msg.point.positions.push_back(qDH_k[i]);
+    final_msg.point.velocities.push_back(qdot[i]);
   }
+
   final_msg.finished = true;
 
   command_pb.publish(final_msg);

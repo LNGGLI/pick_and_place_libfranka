@@ -116,7 +116,7 @@ int main(int argc, char **argv) {
 
       if (q_command_[0] != 0.0) {
 
-        std::cout << "Ricevuta q_command_ non vuota \n";
+        
         if (ros::ok() && !motion_finished_)
           return franka::JointPositions(q_command_);
         else {
@@ -128,7 +128,7 @@ int main(int argc, char **argv) {
       } 
       else {
 
-        // std::cout << "Ricevuta q_command_ vuota \n";
+        std::cout << "Ricevuta q_command_ vuota \n";
         if (ros::ok() && !motion_finished_)
           return franka::JointPositions(q_initial_);
         else {
