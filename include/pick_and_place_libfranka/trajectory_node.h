@@ -20,7 +20,7 @@
 namespace trajectory{
 
 
-    TooN::Vector<7,double> initial_conf = TooN::Zeros; 
+    TooN::Vector<7,double> initial_conf_ = TooN::Zeros; 
     
     bool initial_read = false;
     double Tf = 15;
@@ -28,20 +28,22 @@ namespace trajectory{
     bool set_state(pick_and_place_libfranka::SetState::Request &req, pick_and_place_libfranka::SetState::Response &resp){
 
         for(int i = 0 ; i < 7 ; i++){
-            initial_conf[i] = req.initial_configuration[i];
+            initial_conf_[i] = req.initial_configuration[i];
         }
         
-        if(initial_conf[0]!= 0.0){
+        if(initial_conf_[0]!= 0.0){
 
             resp.success = true;
-            resp.error = "La condizione iniziale è stata letta correttamente";
+            resp.message = "La condizione iniziale e' stata letta correttamente\n";
             initial_read = true; // while(!initial_read) nel nodo trajectory
+
+            std::cout << "q ricevuta = " << initial_conf_ << "\n";
             return true;
         }
         else{
             
             resp.success = false;
-            resp.error = "La condizione iniziale non è stata letta correttamente";
+            resp.message = "La condizione iniziale non e' stata letta correttamente\n";
             return false;
         }   
 
