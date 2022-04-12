@@ -20,7 +20,6 @@
 #include <pick_and_place_libfranka/JointPointTrajectoryAction.h>
 #include <sensor_msgs/JointState.h>
 
-#include "pick_and_place_libfranka/check_realtime.h"
 
 
 
