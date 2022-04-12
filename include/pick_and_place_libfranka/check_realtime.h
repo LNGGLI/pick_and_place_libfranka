@@ -1,5 +1,5 @@
-#ifndef SWING_UP_CHECK_REALTIME
-#define SWING_UP_CHECK_REALTIME
+#ifndef AS12345WD_CHECK_REALTIME
+#define AS12345WD_CHECK_REALTIME
 
 #include <fstream>  // std::ifstream
 #include <iostream> // std::cout

@@ -13,7 +13,7 @@
 
 #include "pick_and_place_libfranka/franka_node.h"
 #include <pick_and_place_libfranka/check_realtime.h>
-#include <pick_and_place_libfranka/ActionClasses/action_classes.h>
+
 
 
 // Libreria Eigen Dense
@@ -38,7 +38,7 @@
 #include <sensor_msgs/JointState.h>
 #include <actionlib/server/simple_action_server.h>
 #include <pick_and_place_libfranka/JointPointTrajectoryAction.h>
-
+#include <pick_and_place_libfranka/TrajAction.h>
 
 /**
 
@@ -64,13 +64,9 @@ int main(int argc, char **argv) {
 
   ros::init(argc, argv, "franka_node");
   ros::NodeHandle nh;
-
-  std::thread state_publisher(publish_state,nh);
-  JointPointTrajAction joint_pos_as_("joint_point_trajectory"); 
-  JointTrajAction joint_traj_as_("joint_trajectory"); 
+  TrajAction traj_action;
+  
   ros::spin();
-
-  state_publisher.join();
 
   return 0;
 }

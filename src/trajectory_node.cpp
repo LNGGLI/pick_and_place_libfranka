@@ -9,7 +9,6 @@
 
 // Server , Actions
 #include <actionlib/client/simple_action_client.h>
-#include <pick_and_place_libfranka/SetState.h>
 
 // Utils
 #include <TooN/TooN.h>

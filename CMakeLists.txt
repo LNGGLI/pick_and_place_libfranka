@@ -163,19 +163,11 @@ add_library(Panda
 src/Panda.cpp
 )
 
-add_library(joint_point_traj STATIC
-src/ActionClasses/joint_point_traj_class.cpp
-)
-
-add_library(joint_traj STATIC
-src/ActionClasses/joint_traj_class.cpp
-)
-
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(franka_node src/franka_node.cpp src/ActionClasses/joint_point_traj_class.cpp)
-add_executable(trajectory_node_libfranka src/trajectory_node.cpp)
+add_executable(franka_node src/franka_node.cpp src/TrajAction.cpp)
+# add_executable(trajectory_node_libfranka src/trajectory_node.cpp)
 
 
 
@@ -194,16 +186,15 @@ add_executable(trajectory_node_libfranka src/trajectory_node.cpp)
    ${catkin_LIBRARIES}
    ${Franka_LIBRARIES}
    examples_common
-   joint_point_traj
-   joint_traj
+
  )
 
- target_link_libraries(trajectory_node_libfranka
-   ${catkin_LIBRARIES}
-   ${Franka_LIBRARIES}
-   examples_common
-   Panda
- )
+#  target_link_libraries(trajectory_node_libfranka
+#    ${catkin_LIBRARIES}
+#    ${Franka_LIBRARIES}
+#    examples_common
+#    Panda
+#  )
 #############
 ## Install ##
 #############
