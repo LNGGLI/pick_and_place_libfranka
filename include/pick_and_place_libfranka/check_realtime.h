@@ -73,4 +73,32 @@ bool set_realtime_SCHED_FIFO(int priority_to_max = 0) {
   return ok;
 }
 
+bool check_thread_realtime(){
+
+  struct sched_param params;
+  pthread_t this_thread = pthread_self();
+  int policy = 0;
+      int ret = pthread_getschedparam(this_thread, &policy, &params);
+      if (ret != 0) {
+        std::cerr << "Couldn't retrieve real-time scheduling paramers"
+                  << std::endl;
+        return false;
+      }
+
+      // Check the correct policy was applied
+      if (policy != SCHED_FIFO) {
+        std::cerr << "Main thread: Scheduling is NOT SCHED_FIFO!" << std::endl;
+        return false;
+      } else {
+        std::cout << "Main thread: SCHED_FIFO OK" << std::endl;
+        std::cout << "Main thread priority is " << params.sched_priority
+                << std::endl;
+        
+        return true;
+      }
+
+}
+
+
+
 #endif

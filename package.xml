@@ -63,6 +63,7 @@
   <depend>sun_traj_lib</depend>
   <depend>ros_toon</depend>
   <depend>sun_robot_lib</depend>
+  <depend>actionlib</depend>
 
   <exec_depend>message_runtime</exec_depend>
 

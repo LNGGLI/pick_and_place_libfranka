@@ -1,0 +1,9 @@
+<?xml version="1.0" ?>
+<launch>
+  <param name="robot_ip" value="10.224.20.198" />
+   
+  <!-- Run control node-->
+  <node name="franka_node" type="franka_node" pkg="pick_and_place_libfranka" output="screen"/>
+    
+  
+</launch>

@@ -21,6 +21,8 @@ roscpp
 sun_traj_lib
 ros_toon
 sun_robot_lib
+genmsg
+actionlib_msgs
 )
 
 
@@ -67,28 +69,28 @@ find_package(Threads REQUIRED)
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
-  
   TrajectoryPointStamped.msg
 )
 
 ## Generate services in the 'srv' folder
  add_service_files(
   FILES
-   SetState.srv
- )
+  
+)
 
 ## Generate actions in the 'action' folder
-# add_action_files(
-#   FILES
-#   Action1.action
-#   Action2.action
-# )
+add_action_files(
+  FILES
+  JointPointTrajectory.action
+  JointTrajectory.action
+)
 
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
   DEPENDENCIES
   std_msgs 
-  trajectory_msgs # Or other packages containing msgs
+  trajectory_msgs
+  actionlib_msgs # Or other packages containing msgs
 )
 
 
@@ -158,12 +160,21 @@ add_library(examples_common STATIC
 )
 
 add_library(Panda 
-src/Panda.cpp)
+src/Panda.cpp
+)
+
+add_library(joint_point_traj STATIC
+src/ActionClasses/joint_point_traj_class.cpp
+)
+
+add_library(joint_traj STATIC
+src/ActionClasses/joint_traj_class.cpp
+)
 
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(franka_node src/franka_node.cpp)
+add_executable(franka_node src/franka_node.cpp src/ActionClasses/joint_point_traj_class.cpp)
 add_executable(trajectory_node_libfranka src/trajectory_node.cpp)
 
 
@@ -183,6 +194,8 @@ add_executable(trajectory_node_libfranka src/trajectory_node.cpp)
    ${catkin_LIBRARIES}
    ${Franka_LIBRARIES}
    examples_common
+   joint_point_traj
+   joint_traj
  )
 
  target_link_libraries(trajectory_node_libfranka

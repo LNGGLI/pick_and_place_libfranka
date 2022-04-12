@@ -1,0 +1,9 @@
+# Define the goal
+float32[7] desired_conf
+float32 desired_tf 
+---
+# Define the result
+bool success
+---
+# Define a feedback message
+float32 time_left
