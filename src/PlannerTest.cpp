@@ -37,25 +37,35 @@ int main(int argc, char **argv) {
 
   pick_and_place_libfranka::JointTrajectoryGoal goal;
   trajectory_msgs::JointTrajectoryPoint point;
+  std::array<double, 7> q_goal{{0, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2, M_PI_4}};
+  std::array<double, 7> q_init{{0, 0, 0, 0, 0, 0, 0}};
 
-  for (int i = 0; i < 7; i++)
-    point.positions.push_back(i + 1);
-  point.time_from_start = ros::Duration(1.0);
-  goal.trajectory.points.push_back(point);
+  // ros::Rate loop_rate(10);
+  // while (ros::ok() && !initial_state_acquired) {
+  //   ros::spinOnce();
+  //   loop_rate.sleep();
+  // }
 
-  point.positions.clear();
+  double t = 0.0;
+  double tf = 10.0;
+  ros::Rate loop_rate(1000);
+  std::array<double, 7> q_command{};
+  while (ros::ok() && t < tf) {
 
-  for (int i = 0; i < 7; i++)
-    point.positions.push_back(2 * i + 1);
-  point.time_from_start = ros::Duration(1.5);
-  goal.trajectory.points.push_back(point);
+    t = t + 0.001;
+    double tau = t / tf;
+    for (int i = 0; i < 7; i++)
+      q_command[i] = q_init[i] + (q_goal[i] - q_init[i]) *
+                                     (6 * pow(tau, 5) - 15 * pow(tau, 4) +
+                                      10 * pow(tau, 3));
 
-  point.positions.clear();
+    for (int i = 0; i < 7; i++)
+      point.positions.push_back(q_command[i]);
+    point.time_from_start = ros::Duration(t);
 
-  for (int i = 0; i < 7; i++)
-    point.positions.push_back(4 * i + 1);
-  point.time_from_start = ros::Duration(2.0);
-  goal.trajectory.points.push_back(point);
+    goal.trajectory.points.push_back(point);
+    point.positions.clear();
+  }
 
   trajectory_ac.waitForServer();
 
