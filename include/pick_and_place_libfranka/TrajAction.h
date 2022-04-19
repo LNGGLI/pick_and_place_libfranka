@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include <cmath>
 #include <mutex>
 #include <thread>
 

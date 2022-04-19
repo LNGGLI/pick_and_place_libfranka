@@ -164,6 +164,7 @@ src/Panda.cpp
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(franka_node src/franka_node.cpp src/TrajAction.cpp)
+add_executable(test_node src/PlannerTest.cpp)
 # add_executable(trajectory_node_libfranka src/trajectory_node.cpp)
 
 
@@ -185,6 +186,13 @@ add_executable(franka_node src/franka_node.cpp src/TrajAction.cpp)
    examples_common
 
  )
+
+ target_link_libraries(test_node
+ ${catkin_LIBRARIES}
+ ${Franka_LIBRARIES}
+ examples_common
+
+)
 
 #  target_link_libraries(trajectory_node_libfranka
 #    ${catkin_LIBRARIES}
