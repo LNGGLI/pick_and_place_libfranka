@@ -4,6 +4,8 @@
 #include <mutex>
 #include <thread>
 
+// Third party libraries
+#include <TooN/TooN.h>
 
 // Librerie Libfranka
 #include <franka/duration.h>
@@ -15,18 +17,18 @@
 // Contiene definizioni di funzioni utili, presente in libfranka
 #include <pick_and_place_libfranka/examples_common.h>
 
-// msgs, action and srv
+// Action and srv
 #include <actionlib/server/simple_action_server.h>
 #include <pick_and_place_libfranka/JointPointTrajectoryAction.h>
+#include <pick_and_place_libfranka/JointTrajectoryAction.h>
+
+// msgs
 #include <sensor_msgs/JointState.h>
-
-
-
+#include <trajectory_msgs/JointTrajectoryPoint.h>
 
 class TrajAction {
 
 protected:
-
   ros::NodeHandle nh_;
   std::shared_ptr<franka::Robot> robot_;
   std::mutex robot_mutex_;
@@ -36,21 +38,20 @@ protected:
   actionlib::SimpleActionServer<
       pick_and_place_libfranka::JointPointTrajectoryAction>
       joint_point_traj_as_;
-  pick_and_place_libfranka::JointPointTrajectoryFeedback feedback_;
-  pick_and_place_libfranka::JointPointTrajectoryResult result_;
+
+  actionlib::SimpleActionServer<pick_and_place_libfranka::JointTrajectoryAction>
+      joint_traj_as_;
 
   void publish_state();
 
 public:
-
   TrajAction();
 
   ~TrajAction(void);
 
   void JointPointTrajCB(
       const pick_and_place_libfranka::JointPointTrajectoryGoalConstPtr &goal);
+
+  void JointTrajCB(
+      const pick_and_place_libfranka::JointTrajectoryGoalConstPtr &goal);
 };
-
-
-
-
