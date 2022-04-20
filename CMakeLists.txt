@@ -136,6 +136,7 @@ catkin_package(
 ## Your package locations should be listed before other locations
 include_directories(
  include
+ ${CMAKE_CURRENT_SOURCE_DIR}
  ${catkin_INCLUDE_DIRS}
  ${Franka_INCLUDE_DIRS}
  ${Eigen3_INCLUDE_DIRS}
@@ -156,15 +157,22 @@ add_library(examples_common STATIC
   src/examples_common.cpp
 )
 
-add_library(Panda 
+add_library(Panda STATIC
 src/Panda.cpp
 )
+
+
+add_library(traj_action
+src/TrajAction.cpp
+)
+
+target_link_libraries(traj_action ${catkin_LIBRARIES} ${Franka_LIBRARIES} examples_common)
 
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(franka_node src/franka_node.cpp src/TrajAction.cpp)
-add_executable(test_node src/PlannerTest.cpp)
+add_executable(franka_node src/franka_control.cpp)
+add_executable(test_node src/test_node.cpp)
 # add_executable(trajectory_node_libfranka src/trajectory_node.cpp)
 
 
@@ -179,12 +187,12 @@ add_executable(test_node src/PlannerTest.cpp)
 ## same as for the library above
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
-## Specify libraries to link a library or executable target against
+# Specify libraries to link a library or executable target against
  target_link_libraries(franka_node
    ${catkin_LIBRARIES}
    ${Franka_LIBRARIES}
    examples_common
-
+   traj_action
  )
 
  target_link_libraries(test_node

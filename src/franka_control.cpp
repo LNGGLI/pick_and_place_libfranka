@@ -6,15 +6,13 @@
 #include <cmath>
 #include <functional>
 #include <iostream>
-#include <vector>
 #include <thread>
+#include <vector>
 
 // Custom functions
 
-#include "pick_and_place_libfranka/franka_node.h"
+#include "pick_and_place_libfranka/franka_control.h"
 #include <pick_and_place_libfranka/check_realtime.h>
-
-
 
 // Libreria Eigen Dense
 #include <Eigen/Dense>
@@ -35,10 +33,10 @@
 #include <ros/ros.h>
 
 // Messaggi, servizi e azioni
-#include <sensor_msgs/JointState.h>
 #include <actionlib/server/simple_action_server.h>
 #include <pick_and_place_libfranka/JointPointTrajectoryAction.h>
 #include <pick_and_place_libfranka/TrajAction.h>
+#include <sensor_msgs/JointState.h>
 
 /**
 
@@ -57,15 +55,15 @@
  */
 
 using namespace franka_node;
-using JointPointActionServer = actionlib::SimpleActionServer<pick_and_place_libfranka::JointPointTrajectoryAction>;
-
+using JointPointActionServer = actionlib::SimpleActionServer<
+    pick_and_place_libfranka::JointPointTrajectoryAction>;
 
 int main(int argc, char **argv) {
 
   ros::init(argc, argv, "franka_node");
   ros::NodeHandle nh;
   TrajAction traj_action;
-  
+
   ros::spin();
 
   return 0;
