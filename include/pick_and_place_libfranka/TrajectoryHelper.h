@@ -148,12 +148,6 @@ panda_clik(std::vector<trajectory_msgs::MultiDOFJointTrajectoryPoint> &points,
   //                                             0.0, 1.0, 0.1034, 0.0, 0.0,
   //                                             0.0, 1.0));
 
-  ros::NodeHandle nh_;
-  ros::Publisher joint_pub =
-      nh_.advertise<sensor_msgs::JointState>("joint_computed", 1);
-  ros::Publisher pose_pub =
-      nh_.advertise<geometry_msgs::PoseStamped>("pose_computed", 1);
-
   // Create robot object
   TooN::Matrix<4, 4, double> n_T_e = TooN::Identity(4);
   sun::Panda panda(n_T_e, 1.0, "panda");
@@ -212,13 +206,6 @@ panda_clik(std::vector<trajectory_msgs::MultiDOFJointTrajectoryPoint> &points,
 
   while (t < tf) {
 
-    /**
-     * Add configuration to trajectory
-     * Compute new configuration with clik
-     * Increment time
-     * Conditional increment of desired configuration
-     */
-
     // Save joint_point
     joint_point.time_from_start =
         ros::Duration(t); // before t = t + Ts so that initial_conf
@@ -229,21 +216,11 @@ panda_clik(std::vector<trajectory_msgs::MultiDOFJointTrajectoryPoint> &points,
 
     joint_traj.push_back(joint_point);
 
-    // Publish joint configuration computed and fkine
-    sensor_msgs::JointState joint_computed;
-    joint_computed.name = {"j1", "j2", "j3", "j4", "j5", "j6", "j7"};
-    joint_computed.header.stamp = ros::Time::now();
-    for (int i = 0; i < 7; i++) {
-      joint_computed.position.push_back(qDH_k[i]);
-    }
-    joint_pub.publish(joint_computed);
-
     // Compute next joint_point
     posizione_d = TooN::makeVector(points[point].transforms[0].translation.x,
                                    points[point].transforms[0].translation.y,
                                    points[point].transforms[0].translation.z);
 
-    std::cout << "Desired Pos: " << posizione_d << "\n";
     unit_quat_d = sun::UnitQuaternion(
         TooN::makeVector(points[point].transforms[0].rotation.w,
                          points[point].transforms[0].rotation.x,
@@ -273,24 +250,7 @@ panda_clik(std::vector<trajectory_msgs::MultiDOFJointTrajectoryPoint> &points,
                               // direttamente la variabile oldQ
                        // e averla già pronta per la prossima iterazione)
     );
-    std::cout << "qdK = " << qDH_k << "\n";
-    geometry_msgs::PoseStamped pose_computed;
-    TooN::Matrix<4, 4, double> pose = panda.fkine(qDH_k);
-    pose_computed.header.stamp = ros::Time::now();
-    TooN::Vector<3, double> computed_position = sun::transl(pose);
-    sun::UnitQuaternion computed_quat(pose);
-    pose_computed.pose.position.x = computed_position[0];
-    pose_computed.pose.position.y = computed_position[1];
-    pose_computed.pose.position.z = computed_position[2];
-    std::cout << "Computed Pos: " << pose_computed.pose.position.x << " "
-              << pose_computed.pose.position.y << " "
-              << pose_computed.pose.position.z << "\n";
-    pose_computed.pose.orientation.w = computed_quat.getS();
-    pose_computed.pose.orientation.x = computed_quat.getV()[0];
-    pose_computed.pose.orientation.y = computed_quat.getV()[1];
-    pose_computed.pose.orientation.z = computed_quat.getV()[2];
 
-    pose_pub.publish(pose_computed);
     // Update time. Do it after you have added the point so that for t = 0.0
     // you will have the initial configuration.
     t = t + Ts;
