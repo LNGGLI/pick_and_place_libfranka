@@ -1,5 +1,4 @@
 #include "pick_and_place_libfranka/TrajAction.h"
-#include "pick_and_place_libfranka/JointTrajectoryHelper.h"
 
 void TrajAction::publish_state() {
 
@@ -37,7 +36,10 @@ TrajAction::TrajAction()
                            boost::bind(&TrajAction::JointPointTrajCB, this, _1),
                            false),
       joint_traj_as_(nh_, "joint_traj",
-                     boost::bind(&TrajAction::JointTrajCB, this, _1), false) {
+                     boost::bind(&TrajAction::JointTrajCB, this, _1), false),
+      cartesian_traj_as_(nh_, "cartesian_traj",
+                         boost::bind(&TrajAction::CartesianTrajCB, this, _1),
+                         false) {
 
   std::string robot_IP;
   if (!nh_.getParam("robot_ip", robot_IP)) {
@@ -46,19 +48,20 @@ TrajAction::TrajAction()
 
   try {
 
-    // Connessione al robot
-    robot_ = std::make_unique<franka::Robot>(robot_IP);
+    // Connect to robot
+    // robot_ = std::make_unique<franka::Robot>(robot_IP);
 
-    setDefaultBehavior(*robot_);
+    // setDefaultBehavior(*robot_);
 
     state_pub_ = nh_.advertise<sensor_msgs::JointState>("joint_state", 1);
-    // start publisher thread
-    publish_thread_ = std::make_unique<std::thread>(
-        std::bind(&TrajAction::publish_state, this));
+    // Start publisher thread
+    // publish_thread_ = std::make_unique<std::thread>(
+    //     std::bind(&TrajAction::publish_state, this));
 
-    // Start as
-    joint_point_traj_as_.start();
-    joint_traj_as_.start();
+    // Start action servers
+    // joint_point_traj_as_.start();
+    // joint_traj_as_.start();
+    cartesian_traj_as_.start();
 
     std::cout << "Creato oggetto ActionTraj e avviati i server \n";
 
@@ -70,6 +73,11 @@ TrajAction::TrajAction()
 
 TrajAction::~TrajAction(void) { publish_thread_->join(); }
 
+/**
+ * @brief The first point of the goal trajectory must be the current
+ * configuration with time_from_start = 0.
+ *
+ */
 void TrajAction::JointTrajCB(
     const pick_and_place_libfranka::JointTrajectoryGoalConstPtr &goal) {
 
@@ -81,24 +89,17 @@ void TrajAction::JointTrajCB(
 
     robot_mutex_.lock();
 
-    // get initial state and add it to the trajectory
-    trajectory_msgs::JointTrajectoryPoint initial_state;
-    for (int i = 0; i < 7; i++) {
-      initial_state.positions.push_back(robot_->readOnce().q[i]);
-    }
-    initial_state.time_from_start = ros::Duration(0.0);
-
     std::vector<trajectory_msgs::JointTrajectoryPoint> points;
-    points.push_back(initial_state);
-    for (int i = 0; i < goal->trajectory.points.size(); i++)
+    for (long unsigned int i = 0; i < goal->trajectory.points.size(); i++)
       points.push_back(goal->trajectory.points[i]);
 
-    // Interpolation
+    // 3rd degree interpolation of the given points
     std::vector<TooN::Matrix<TooN::Dynamic, 4, double>> coeff =
         compute_polynomial_interpolation(points);
 
     double tf =
-        points.back().time_from_start.toSec(); // desired trajectory duration
+        points.back()
+            .time_from_start.toSec(); // desired duration of the trajectory
     joint_traj_feedback.time_left = tf;
     joint_traj_as_.publishFeedback(joint_traj_feedback);
 
@@ -108,7 +109,7 @@ void TrajAction::JointTrajCB(
     // Start executing trajectory
     std::array<double, 7> q_command;
     double t = 0.0;
-    int p = 0;
+    int p = 0; // tracks the polynomial coefficients that have to be used
     bool success = false;
 
     robot_->control([&](const franka::RobotState &robot_state,
@@ -249,6 +250,98 @@ void TrajAction::JointPointTrajCB(
       // set the action state to succeeded
       joint_point_traj_as_.setSucceeded(joint_point_result);
     }
+
+  } catch (const franka::Exception &ex) {
+
+    // print exception
+    std::cout << ex.what() << std::endl;
+  }
+
+  robot_mutex_.unlock();
+}
+
+/**
+ * @brief The first point of the goal trajectory does not need to  be the
+ * current pose.
+ *
+ */
+void TrajAction::CartesianTrajCB(
+    const pick_and_place_libfranka::CartesianTrajectoryGoalConstPtr &goal) {
+
+  pick_and_place_libfranka::CartesianTrajectoryFeedback cartesian_feedback;
+  pick_and_place_libfranka::CartesianTrajectoryResult cartesian_result;
+
+  std::vector<trajectory_msgs::MultiDOFJointTrajectoryPoint> points;
+  for (long unsigned int i = 0; i < goal->trajectory.points.size(); i++)
+    points.push_back(goal->trajectory.points[i]);
+  robot_mutex_.lock();
+
+  try {
+
+    double tf = goal->trajectory.points.back().time_from_start.toSec(); // s
+
+    cartesian_feedback.time_left = tf;
+    cartesian_traj_as_.publishFeedback(cartesian_feedback);
+
+    std::vector<trajectory_msgs::JointTrajectoryPoint> joint_trajectory;
+    // std::array<double, 7> initial_configuration = robot_->readOnce().q;
+    std::array<double, 7> initial_configuration{
+        {0, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2, M_PI_4}};
+
+    joint_trajectory = panda_clik(points, initial_configuration);
+
+    // CANCELLARE IL SETSUCCEDED
+    cartesian_result.success = true;
+    cartesian_traj_as_.setSucceeded(cartesian_result);
+
+    // sensor_msgs::JointState joint_state;
+    // joint_state.name = {"j1", "j2", "j3", "j4", "j5", "j6", "j7"};
+
+    // std::array<double, 7> q_command;
+    // bool success = false;
+    // double t = 0;
+
+    // robot_->control([&](const franka::RobotState &robot_state,
+    //                     franka::Duration period) -> franka::JointPositions {
+    //   // Publishing joint_state
+    //   joint_state.position.clear();
+    //   for (int i = 0; i < 7; i++) {
+    //     joint_state.position.push_back(robot_state.q[i]);
+    //   }
+    //   joint_state.header.stamp = ros::Time::now();
+    //   state_pub_.publish(joint_state);
+
+    //   // Compute q_command
+    //   t += period.toSec();
+
+    //   // Check if preempted
+    //   if (cartesian_traj_as_.isPreemptRequested() || !ros::ok()) {
+    //     ROS_INFO("Preempted: Cartesian Point Trajectory \n ");
+    //     // set the action state to preempted
+    //     cartesian_traj_as_.setPreempted();
+    //     return franka::MotionFinished(franka::JointPositions(q_command));
+    //   }
+
+    //   // Publish feedback
+    //   cartesian_feedback.time_left = tf - t;
+    //   cartesian_traj_as_.publishFeedback(cartesian_feedback);
+
+    //   // Send command
+    //   if (t < tf) {
+    //     return franka::JointPositions(q_command);
+    //   } else {
+    //     std::cout << "Motion finished \n";
+    //     success = true;
+    //     return franka::MotionFinished(franka::JointPositions(q_command));
+    //   }
+    // });
+
+    // if (success) {
+    //   cartesian_result.success = true;
+    //   ROS_INFO("Succeeded: Cartesian Point Trajectory \n ");
+    //   // set the action state to succeeded
+    //   cartesian_traj_as_.setSucceeded(cartesian_result);
+    // }
 
   } catch (const franka::Exception &ex) {
 

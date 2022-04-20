@@ -50,7 +50,6 @@ int main(int argc, char **argv) {
       nh.advertise<pick_and_place_libfranka::TrajectoryPointStamped>(
           "/joint_commands", 1);
 
-
   /*ros::Publisher traj_pb =
   nh.advertise<trajectory_msgs::MultiDOFJointTrajectoryPoint>(
       "/cartesian_trajectory_command", 1);
@@ -75,16 +74,15 @@ int main(int argc, char **argv) {
 
   std::cout << "\n Configurazione iniziale (initial_conf_) acquisita. \n";
 
-
   // Invio configurazione iniziale
   double begin_test = ros::Time::now().toSec();
   double t_test = 0.0;
-  ros::Rate loop_rate_test(1000.0); 
+  ros::Rate loop_rate_test(1000.0);
 
-  while (ros::ok() && t_test < Tf/3) {
+  while (ros::ok() && t_test < Tf / 3) {
 
     t_test = ros::Time::now().toSec() - begin_test; // tempo trascorso
-    
+
     pick_and_place_libfranka::TrajectoryPointStamped command_msg;
 
     for (int i = 0; i < 7; i++)
@@ -105,10 +103,7 @@ int main(int argc, char **argv) {
 
   command_pb.publish(command_msg);
 
-
   return 0;
-
-
 
   TooN::Matrix<4, 4, double> n_T_e(TooN::Data(0.7071, 0.7071, 0.0, 0.0, -0.7071,
                                               0.7071, 0.0, 0.0, 0.0, 0.0, 1.0,
@@ -122,7 +117,7 @@ int main(int argc, char **argv) {
       initial_pose[2][3]); // initial_transform.get_translation();
                            // // initial_position
 
-  sun::UnitQuaternion init_quat(initial_pose);  // initial orientation
+  sun::UnitQuaternion init_quat(initial_pose); // initial orientation
 
   TooN::Matrix<3, 3> Rot_des = TooN::Data(1, 0, 0, 0, 0, 1, 0, -1, 0);
   sun::UnitQuaternion final_quat(Rot_des);

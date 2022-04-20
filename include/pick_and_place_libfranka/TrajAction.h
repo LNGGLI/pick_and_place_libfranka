@@ -4,6 +4,8 @@
 #include <cmath>
 #include <mutex>
 #include <thread>
+// My libraries
+#include "pick_and_place_libfranka/TrajectoryHelper.h"
 
 // Third party libraries
 #include <TooN/TooN.h>
@@ -20,6 +22,7 @@
 
 // Action and srv
 #include <actionlib/server/simple_action_server.h>
+#include <pick_and_place_libfranka/CartesianTrajectoryAction.h>
 #include <pick_and_place_libfranka/JointPointTrajectoryAction.h>
 #include <pick_and_place_libfranka/JointTrajectoryAction.h>
 
@@ -43,6 +46,10 @@ protected:
   actionlib::SimpleActionServer<pick_and_place_libfranka::JointTrajectoryAction>
       joint_traj_as_;
 
+  actionlib::SimpleActionServer<
+      pick_and_place_libfranka::CartesianTrajectoryAction>
+      cartesian_traj_as_;
+
   void publish_state();
 
 public:
@@ -55,4 +62,7 @@ public:
 
   void JointTrajCB(
       const pick_and_place_libfranka::JointTrajectoryGoalConstPtr &goal);
+
+  void CartesianTrajCB(
+      const pick_and_place_libfranka::CartesianTrajectoryGoalConstPtr &goal);
 };
