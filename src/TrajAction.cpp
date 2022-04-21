@@ -331,17 +331,19 @@ void TrajAction::CartesianTrajCB(
     for (long unsigned int i = 0; i < goal->trajectory.points.size(); i++)
       points.push_back(goal->trajectory.points[i]);
 
-    // Compute Joint trajectory with inverse kinematics
-    // The initial configuration will be added as first point of the trajectory
     std::vector<trajectory_msgs::JointTrajectoryPoint> joint_trajectory;
     std::array<double, 7> initial_configuration = robot_->readOnce().q_d;
 
+    // Compute Joint trajectory with inverse kinematics
+    // The initial configuration will be added as first point of the trajectory
     TooN::Matrix<4, 4, double> n_T_e = TooN::Identity(4); // NO HAND attached
     joint_trajectory = panda_clik(points, initial_configuration, n_T_e);
+    std::cout << "Clik eseguito \n";
 
     // 3rd degree interpolation of the given points
     std::vector<TooN::Matrix<TooN::Dynamic, 4, double>> coeff =
         compute_polynomial_interpolation(joint_trajectory);
+    std::cout << "Interpolazione eseguita \n";
 
     // Publish feedback
     double tf = goal->trajectory.points.back().time_from_start.toSec(); // s
@@ -403,9 +405,12 @@ void TrajAction::CartesianTrajCB(
       if (t > points[p + 1].time_from_start.toSec())
         p++;
 
-      if (t < tf)
+      if (t < tf) {
+        std::cout << "Invio comando \n";
         return debugging ? franka::JointPositions(initial_configuration)
                          : franka::JointPositions(q_command);
+      }
+
       else {
         std::cout << "Cartesian Traj action finished \n";
         success = true;

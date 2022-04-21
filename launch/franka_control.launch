@@ -4,7 +4,7 @@
   <param name="publish_command" value="true" />
 
   <!-- If debugging is true no commands will be sent to the robot -->
-  <param name="debugging" value="true" />
+  <param name="debugging" value="false" />
 
 
   <!-- Run control node-->

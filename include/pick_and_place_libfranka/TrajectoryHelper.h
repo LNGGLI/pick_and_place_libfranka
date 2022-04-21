@@ -160,17 +160,20 @@ panda_clik(std::vector<trajectory_msgs::MultiDOFJointTrajectoryPoint> &points,
   //                                             0.0, 1.0));
 
   // Create robot object
+
   sun::Panda panda(n_T_e, 1.0, "panda");
 
   // Result will be stored here
   std::vector<trajectory_msgs::JointTrajectoryPoint> joint_traj;
 
+  std::cout << "Prima dell'eliminazione del primo punto \n";
   if (points[0].time_from_start.toSec() == 0.0) {
     points.erase(points.begin());
   }
 
-  // CLIK parameters
+  std::cout << "Dopo dell'eliminazione del primo punto \n";
 
+  // CLIK parameters
   double Ts = 0.001;  // period s
   double fs = 1 / Ts; // frequecy Hz
 
@@ -209,11 +212,12 @@ panda_clik(std::vector<trajectory_msgs::MultiDOFJointTrajectoryPoint> &points,
   // control variables
   int point = 0;
   double tf = points.back().time_from_start.toSec();
-  joint_traj.reserve(tf / Ts);
+  joint_traj.reserve((int)(tf / Ts));
   double t = 0.0;
 
   ros::Rate lp(1000); // da usare solo per la pubblicazione poi andrà tolto
 
+  std::cout << "Prima del clik \n";
   while (t < tf) {
 
     // Save joint_point
@@ -258,7 +262,7 @@ panda_clik(std::vector<trajectory_msgs::MultiDOFJointTrajectoryPoint> &points,
                        oldQ   // <- variabile di ritorno: Quaternione attuale
                               // (N.B. qui uso oldQ  in modo da aggiornare
                               // direttamente la variabile oldQ
-                            // e averla già pronta per la prossima iterazione)
+                       // e averla già pronta per la prossima iterazione)
     );
 
     // Update time. Do it after you have added the point so that for t = 0.0
@@ -273,6 +277,8 @@ panda_clik(std::vector<trajectory_msgs::MultiDOFJointTrajectoryPoint> &points,
 
     lp.sleep();
   }
+
+  std::cout << "Fine del clik \n";
 
   return joint_traj;
 }

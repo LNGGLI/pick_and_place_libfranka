@@ -156,14 +156,17 @@ int main(int argc, char **argv) {
   sun::Cartesian_Independent_Traj cartesian_traj(line_traj, quat_traj);
   pick_and_place_libfranka::CartesianTrajectoryGoal cartesian_traj_goal;
   Ts = 0.001;
-  cartesian_traj_goal.trajectory.points.reserve(Tf / Ts);
+
+  cartesian_traj_goal.trajectory.points.reserve((int)(Tf / Ts));
 
   trajectory_msgs::MultiDOFJointTrajectoryPoint cartesian_point;
 
   TooN::Vector<3, double> posizione_d;
   sun::UnitQuaternion unit_quat_d;
+  t = 0.0;
   while (ros::ok() && !cartesian_traj.isCompleate(t)) {
 
+    t = t + Ts; // tempo trascorso
     posizione_d = cartesian_traj.getPosition(t);
     unit_quat_d = cartesian_traj.getQuaternion(t);
 
@@ -181,8 +184,6 @@ int main(int argc, char **argv) {
     cartesian_point.time_from_start = ros::Duration(t);
 
     cartesian_traj_goal.trajectory.points.push_back(cartesian_point);
-
-    t = t + Ts; // tempo trascorso
   }
 
   std::cout << "Cartesian Trajectory created, waiting for server then sending "
