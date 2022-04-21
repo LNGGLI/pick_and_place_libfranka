@@ -101,8 +101,7 @@ TooN::Matrix<TooN::Dynamic, 4, double> compute_poly_coefficients(
 
     // Solve system
     result[k] = TooN::gaussian_elimination(A, b);
-    std::cout << " For joint " << joint << " coeff poly " << k << "= "
-              << result[k] << "\n";
+    
   }
 
   return result;

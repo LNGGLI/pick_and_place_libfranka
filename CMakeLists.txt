@@ -175,7 +175,7 @@ target_link_libraries(traj_action ${catkin_LIBRARIES} ${Franka_LIBRARIES} exampl
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(franka_control src/franka_control.cpp)
 add_executable(test_node src/test_node.cpp)
-# add_executable(trajectory_node_libfranka src/trajectory_node.cpp)
+add_executable(trajectory_node_libfranka src/trajectory_node.cpp)
 
 
 
@@ -205,12 +205,12 @@ add_executable(test_node src/test_node.cpp)
 
 )
 
-#  target_link_libraries(trajectory_node_libfranka
-#    ${catkin_LIBRARIES}
-#    ${Franka_LIBRARIES}
-#    examples_common
-#    Panda
-#  )
+ target_link_libraries(trajectory_node_libfranka
+   ${catkin_LIBRARIES}
+   ${Franka_LIBRARIES}
+   examples_common
+   Panda
+ )
 #############
 ## Install ##
 #############

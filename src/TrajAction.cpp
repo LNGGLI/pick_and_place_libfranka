@@ -24,7 +24,6 @@ void TrajAction::publish_state() {
 
       state_pub_.publish(msg);
     }
-
   } catch (const franka::Exception &ex) {
     // print exception
     std::cout << ex.what() << std::endl;
@@ -43,28 +42,31 @@ TrajAction::TrajAction()
 
   std::string robot_IP;
   if (!nh_.getParam("robot_ip", robot_IP)) {
-    ROS_ERROR_STREAM("Specificare l'indirizzo IP del robot.");
+    ROS_ERROR_STREAM("Param robot_ip not found.");
+  }
+
+  if (!nh_.getParam("publish_command", publish_command)) {
+    ROS_ERROR_STREAM("Param publish_command not found.");
   }
 
   try {
 
     // Connect to robot
-    // robot_ = std::make_unique<franka::Robot>(robot_IP);
+    robot_ = std::make_unique<franka::Robot>(robot_IP);
 
-    // setDefaultBehavior(*robot_);
+    setDefaultBehavior(*robot_);
 
     state_pub_ = nh_.advertise<sensor_msgs::JointState>("joint_state", 1);
     // Start publisher thread
-    // publish_thread_ = std::make_unique<std::thread>(
-    //     std::bind(&TrajAction::publish_state, this));
+    publish_thread_ = std::make_unique<std::thread>(
+        std::bind(&TrajAction::publish_state, this));
 
     // Start action servers
-    // joint_point_traj_as_.start();
-    // joint_traj_as_.start();
+    joint_point_traj_as_.start();
+    joint_traj_as_.start();
     cartesian_traj_as_.start();
 
     std::cout << "Creato oggetto ActionTraj e avviati i server \n";
-
   } catch (const franka::Exception &ex) {
     // print exception
     std::cout << ex.what() << std::endl;
@@ -84,6 +86,9 @@ void TrajAction::JointTrajCB(
   using std::pow;
   pick_and_place_libfranka::JointTrajectoryFeedback joint_traj_feedback;
   pick_and_place_libfranka::JointTrajectoryResult joint_traj_result;
+  ros::NodeHandle nh;
+  ros::Publisher command_publisher =
+      nh.advertise<sensor_msgs::JointState>("joint_command", 1);
 
   try {
 
@@ -94,6 +99,7 @@ void TrajAction::JointTrajCB(
       points.push_back(goal->trajectory.points[i]);
 
     // 3rd degree interpolation of the given points
+
     std::vector<TooN::Matrix<TooN::Dynamic, 4, double>> coeff =
         compute_polynomial_interpolation(points);
 
@@ -105,6 +111,8 @@ void TrajAction::JointTrajCB(
 
     sensor_msgs::JointState joint_state;
     joint_state.name = {"j1", "j2", "j3", "j4", "j5", "j6", "j7"};
+    sensor_msgs::JointState joint_command;
+    joint_command.name = {"j1", "j2", "j3", "j4", "j5", "j6", "j7"};
 
     // Start executing trajectory
     std::array<double, 7> q_command;
@@ -133,6 +141,16 @@ void TrajAction::JointTrajCB(
                            coeff[joint](p, 2) * pow(t, 2) +
                            coeff[joint](p, 3) * pow(t, 3);
 
+      // Publish joint command
+      if (publish_command) {
+        joint_command.position.clear();
+        for (int i = 0; i < 7; i++) {
+          joint_command.position.push_back(q_command[i]);
+        }
+        joint_command.header.stamp = ros::Time::now();
+        command_publisher.publish(joint_command);
+      }
+
       // Check if the action has been preempteed
       if (joint_traj_as_.isPreemptRequested() || !ros::ok()) {
         ROS_INFO("Preempted: Joint Trajectory \n ");
@@ -141,7 +159,7 @@ void TrajAction::JointTrajCB(
         return franka::MotionFinished(franka::JointPositions(q_command));
       }
 
-      // Change polynomial coefficients.
+      // Change polynomial coefficients / point
       if (t > points[p + 1].time_from_start.toSec())
         p++;
 
@@ -160,7 +178,6 @@ void TrajAction::JointTrajCB(
       // set the action state to succeeded
       joint_traj_as_.setSucceeded(joint_traj_result);
     }
-
   } catch (const franka::Exception &ex) {
     // print exception
     std::cout << ex.what() << std::endl;
@@ -176,6 +193,9 @@ void TrajAction::JointPointTrajCB(
   pick_and_place_libfranka::JointPointTrajectoryResult joint_point_result;
 
   robot_mutex_.lock();
+  ros::NodeHandle nh;
+  ros::Publisher command_publisher =
+      nh.advertise<sensor_msgs::JointState>("joint_command", 1);
 
   try {
 
@@ -207,6 +227,8 @@ void TrajAction::JointPointTrajCB(
 
     sensor_msgs::JointState joint_state;
     joint_state.name = {"j1", "j2", "j3", "j4", "j5", "j6", "j7"};
+    sensor_msgs::JointState joint_command;
+    joint_command.name = {"j1", "j2", "j3", "j4", "j5", "j6", "j7"};
 
     robot_->control([&](const franka::RobotState &robot_state,
                         franka::Duration period) -> franka::JointPositions {
@@ -232,6 +254,16 @@ void TrajAction::JointPointTrajCB(
         return franka::MotionFinished(franka::JointPositions(q_command));
       }
 
+      // Publish joint command
+      if (publish_command) {
+        joint_command.position.clear();
+        for (int i = 0; i < 7; i++) {
+          joint_command.position.push_back(q_command[i]);
+        }
+        joint_command.header.stamp = ros::Time::now();
+        command_publisher.publish(joint_command);
+      }
+
       joint_point_feedback.time_left = goal->desired_tf - t;
       joint_point_traj_as_.publishFeedback(joint_point_feedback);
 
@@ -250,7 +282,6 @@ void TrajAction::JointPointTrajCB(
       // set the action state to succeeded
       joint_point_traj_as_.setSucceeded(joint_point_result);
     }
-
   } catch (const franka::Exception &ex) {
 
     // print exception
@@ -342,7 +373,6 @@ void TrajAction::CartesianTrajCB(
     //   // set the action state to succeeded
     //   cartesian_traj_as_.setSucceeded(cartesian_result);
     // }
-
   } catch (const franka::Exception &ex) {
 
     // print exception
