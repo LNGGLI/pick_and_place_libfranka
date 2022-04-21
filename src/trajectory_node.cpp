@@ -56,9 +56,11 @@ int main(int argc, char **argv) {
   std::array<double, 7> q_init = current_state;
   std::array<double, 7> q_goal{{0, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2, M_PI_4}};
 
-  double t = 0.0;   // s
-  double Ts = 10.0; // s
-  double Tf = 10.0; // s
+  double t = 0.0;    // s
+  double Ts = 0.001; // s
+  double Tf = 10.0;  // s
+
+  /** JOINT TRAJECTORY ACTION **/
 
   pick_and_place_libfranka::JointTrajectoryGoal joint_traj_goal;
   joint_traj_goal.trajectory.joint_names = {"j1", "j2", "j3", "j4",
@@ -98,198 +100,106 @@ int main(int argc, char **argv) {
   } else
     ROS_INFO("Action did not finish before the time out.");
 
-  {
+  /******** CARTESIAN TRAJECTORY ACTION ***********/
 
-    // Servizio per settare la configurazione iniziale nel trajectory planner.
+  // TooN::Matrix<4, 4, double> n_T_e(TooN::Data(0.7071, 0.7071, 0.0, 0.0,
+  //                                             -0.7071,
+  //                                             0.7071, 0.0, 0.0, 0.0,
+  //                                             0.0, 1.0, 0.1034, 0.0, 0.0,
+  //                                             0.0, 1.0));
+  // Quando viene montato il gripper assicurarsi che pz sia impostato su AppDesk
+  // a 0.1034 prima di utilizzare questa matrice di trasformazione
 
-    // TooN::Matrix<4, 4, double> n_T_e(TooN::Data(0.7071, 0.7071, 0.0, 0.0,
-    // -0.7071,
-    //                                             0.7071, 0.0, 0.0, 0.0,
-    //                                             0.0, 1.0, 0.1034, 0.0, 0.0,
-    //                                             0.0, 1.0));
+  actionlib::SimpleActionClient<
+      pick_and_place_libfranka::CartesianTrajectoryAction>
+      cartesian_traj_ac("cartesian_traj", true);
 
-    // sun::Panda panda(n_T_e, 1.0, "panda");
-    // TooN::Matrix<4, 4, double> initial_pose = panda.fkine(initial_conf);
+  TooN::Matrix<4, 4, double> n_T_e = TooN::Identity(4);
+  sun::Panda panda(n_T_e, 1.0, "panda");
 
-    // TooN::Vector<3> pi = TooN::makeVector(
-    //     initial_pose[0][3], initial_pose[1][3],
-    //     initial_pose[2][3]); // initial_transform.get_translation();
-    //                          // // initial_position
-
-    // sun::UnitQuaternion init_quat(initial_pose); // initial orientation
-
-    // TooN::Matrix<3, 3> Rot_des = TooN::Data(1, 0, 0, 0, 0, 1, 0, -1, 0);
-    // sun::UnitQuaternion final_quat(Rot_des);
-    // sun::UnitQuaternion delta_quat =
-    //     final_quat * inv(init_quat); // errore in terna base
-    // sun::AngVec angvec = delta_quat.toangvec();
-
-    // // Nota: la libreria vuole delta_quat definita in terna base.
-
-    // // Generazione della traiettoria su primitiva di percorso di tipo
-    // segmento:
-
-    // std::cout << "Generazione della traiettoria in cartesiano \n";
-
-    // TooN::Vector<3, double> pf({0.5, 0.5, 0.5});
-    // // TooN::Vector<3, double> pf({0.655105430989015, 0.1096259365986445,
-    // // 0.06857646438044779-0.01});
-
-    // sun::Quintic_Poly_Traj qp_position(
-    //     Tf, 0.0, 1.0); // polinomio quintico utilizzato per line_traj
-    // sun::Quintic_Poly_Traj qp_orientation(
-    //     Tf, 0.0, angvec.getAng()); // polinomio quintico utilizzato per
-    //     quat_traj
-
-    // sun::Line_Segment_Traj line_traj(pi, pf, qp_position);
-    // sun::Rotation_Const_Axis_Traj quat_traj(init_quat, angvec.getVec(),
-    //                                         qp_orientation);
-
-    // // Nota: la traiettoria in orientamento è quella definita dal Delta_quat.
-    // // Perchè vogliamo andare da init_quat (orientamento iniziale) a
-    // final_quat
-    // // (orientamento finale). Il metodo getquaternion(t) restituisce
-    // DeltaQuat(t)
-    // // * init_quat.
-
-    // sun::Cartesian_Independent_Traj cartesian_traj(line_traj, quat_traj);
-
-    // // Parametri CLIK
-    // double Ts = 0.001;  // periodo s
-    // double fs = 1 / Ts; // frequenza Hz
-
-    // ros::Rate loop_rate(fs); // Hz
-
-    // double gain = 0.5 * fs;
-    // TooN::Vector<> qdot = TooN::Zeros(7); // velocità di giunto ritorno
-    // TooN::Vector<6, int> mask =
-    //     TooN::Ones;                   // maschera, se l'i-esimo elemento è
-    //     zero allora l'i-esima
-    //                                   // componente cartesiana non verrà
-    //                                   usata per il calcolo
-    //                                   // dell'errore
-    // TooN::Vector<3> xd = TooN::Zeros; // velocità in translazione desiderata
-    // TooN::Vector<3> w = TooN::Zeros;  // velocità angolare desiderata
-    // TooN::Vector<6> error =
-    //     TooN::Ones; // questo va "resettato" ogni volta prima del clik
-    // TooN::Vector<7> qDH_k = initial_conf_;
-    // sun::UnitQuaternion oldQ = init_quat;
-
-    // sun::UnitQuaternion unit_quat_d = init_quat;
-    // TooN::Vector<3, double> posizione_d = pi;
-
-    // double begin = ros::Time::now().toSec();
-    // double t;
-
-    // std::cout << "Inizia moto " << std::endl;
-
-    // while (ros::ok() &&
-    //        !cartesian_traj.isCompleate(t)) // &&
-    //        !cartesian_traj.isCompleate(t)
-    // {
-
-    //   t = ros::Time::now().toSec() - begin; // tempo trascorso
-    //   posizione_d = cartesian_traj.getPosition(t);
-    //   unit_quat_d = cartesian_traj.getQuaternion(0);
-    //   xd = cartesian_traj.getLinearVelocity(t);
-    //   w = cartesian_traj.getAngularVelocity(0);
-
-    //   qDH_k = panda.clik(
-    //       qDH_k,       //<- qDH attuale
-    //       posizione_d, // <- posizione desiderata
-    //       unit_quat_d, // <- quaternione desiderato
-    //       oldQ,        // <- quaternione al passo precedente (per garantire
-    //       la
-    //                    // continuità)
-    //       xd,          // <- velocità in translazione desiderata
-    //       w,           //<- velocità angolare desiderata
-    //       mask,        // <- maschera, se l'i-esimo elemento è zero allora
-    //       l'i-esima
-    //                    // componente cartesiana non verrà usata per il
-    //                    calcolo
-    //                    // dell'errore
-    //       gain,        // <- guadagno del clik
-    //       Ts,          // <- Ts, tempo di campionamento
-    //       0.0,         // <- quadagno obj secondario
-    //       TooN::Zeros(panda.getNumJoints()),
-
-    //       // Return Vars
-    //       qdot,  // <- variabile di ritorno velocità di giunto
-    //       error, //<- variabile di ritorno errore
-    //       oldQ   // <- variabile di ritorno: Quaternione attuale (N.B. qui
-    //       uso oldQ
-    //              // in modo da aggiornare direttamente la variabile oldQ e
-    //              averla
-    //              // già pronta per la prossima iterazione)
-    //   );
-
-    //   bool limits_exceeded =
-    //       panda.exceededHardJointLimits(panda.joints_DH2Robot(qDH_k));
-    //   pick_and_place_libfranka::TrajectoryPointStamped command_msg;
-    //   trajectory_msgs::MultiDOFJointTrajectoryPoint traj_msg;
-
-    //   // Pubblicazione comando in spazio giunti
-    //   if (!limits_exceeded)
-    //   {
-    //     command_msg.header.stamp = ros::Time::now();
-    //     for (int i = 0; i < 7; i++)
-    //     {
-    //       command_msg.point.positions.push_back(qDH_k[i]);
-    //       command_msg.point.velocities.push_back(qdot[i]);
-    //     }
-    //     command_msg.finished = false;
-    //   }
-    //   else
-    //   {
-    //     throw std::runtime_error("Limiti di giunto superati");
-    //   }
-
-    //   command_pb.publish(command_msg);
-
-    //   // // Comando in orientamento
-    //   // traj_msg.transforms[0].rotation.x = unit_quat_d.getS();
-    //   // TooN::Vector<3, double> vec_quat = unit_quat_d.getV();
-    //   // traj_msg.transforms[0].rotation.y = vec_quat[0];
-    //   // traj_msg.transforms[0].rotation.z = vec_quat[1];
-    //   // traj_msg.transforms[0].rotation.w = vec_quat[2];
-
-    //   // traj_pb.publish(traj_msg);
-
-    //   // // Pubblicazione cinematica diretta ottenuta dalla q clik
-    //   // TooN::Matrix<4,4,double> fkine = panda.fkine(qDH_k);
-    //   // fkine_msg.transforms.resize(1);
-    //   // fkine_msg.transforms[0].translation.x = fkine[0][3];
-    //   // fkine_msg.transforms[0].translation.y = fkine[1][3];
-    //   // fkine_msg.transforms[0].translation.z = fkine[2][3];
-
-    //   // sun::UnitQuaternion quat_fkine(fkine);  // inizializzazione
-    //   quaternione
-    //   // con matrice 4x4 TooN::Vector<3, double> fkine_vec_quat =
-    //   // quat_fkine.getV(); fkine_msg.transforms[0].rotation.x =
-    //   // unit_quat_d.getS(); fkine_msg.transforms[0].rotation.y =
-    //   // fkine_vec_quat[0]; fkine_msg.transforms[0].rotation.z =
-    //   // fkine_vec_quat[1]; fkine_msg.transforms[0].rotation.w =
-    //   // fkine_vec_quat[2];
-
-    //   // fkine_pb.publish(fkine_msg);
-
-    //   loop_rate.sleep();
-    // }
-
-    // // fine traiettoria, invio messaggio con finished = true
-    // std::cout << "Moto terminato lato trajectory planner\n";
-    // pick_and_place_libfranka::TrajectoryPointStamped final_msg;
-
-    // for (int i = 0; i < 7; i++)
-    // {
-    //   final_msg.point.positions.push_back(qDH_k[i]);
-    //   final_msg.point.velocities.push_back(qdot[i]);
-    // }
-
-    // final_msg.finished = true;
-
-    // command_pb.publish(final_msg);
+  while (ros::ok() && !state_read) {
+    ros::spinOnce();
+    slow_loop.sleep();
   }
+  // Initial pose
+  TooN::Vector<7, double> current_joint_state;
+  for (int i = 0; i < 7; i++)
+    current_joint_state[i] = current_state[i];
+  TooN::Matrix<4, 4, double> initial_pose = panda.fkine(current_joint_state);
+  TooN::Vector<3> pi = sun::transl(initial_pose); // initial position
+  sun::UnitQuaternion init_quat(initial_pose);    // initial orientation
+
+  // Desired Pose
+  TooN::Vector<3, double> pf = pi + TooN::makeVector(0.01, 0.0, 0.0);
+
+  TooN::Matrix<3, 3> Rot_des = TooN::Data(1, 0, 0, 0, 0, 1, 0, -1, 0);
+  sun::UnitQuaternion final_quat(Rot_des); // desired quaternion
+  sun::UnitQuaternion delta_quat = final_quat * inv(init_quat);
+  sun::AngVec angvec = delta_quat.toangvec();
+
+  Tf = 10.0;
+  sun::Quintic_Poly_Traj qp_position(
+      Tf, 0.0, 1.0); // polinomio quintico utilizzato per line_traj
+  sun::Quintic_Poly_Traj qp_orientation(
+      Tf, 0.0, angvec.getAng()); // polinomio quintico utilizzato per quat_traj
+
+  sun::Line_Segment_Traj line_traj(pi, pf, qp_position);
+  sun::Rotation_Const_Axis_Traj quat_traj(init_quat, angvec.getVec(),
+                                          qp_orientation);
+
+  // Nota: la traiettoria in orientamento è quella definita dal Delta_quat.
+  // Perchè vogliamo andare da init_quat (orientamento iniziale) a final_quat
+  // (orientamento finale). Il metodo getquaternion(t) restituisce DeltaQuat(t)
+  // * init_quat. Il metodo getPosition(t) resituisce direttamente la posizione
+  // corretta tra pi e pf.
+
+  sun::Cartesian_Independent_Traj cartesian_traj(line_traj, quat_traj);
+  pick_and_place_libfranka::CartesianTrajectoryGoal cartesian_traj_goal;
+  Ts = 0.001;
+  cartesian_traj_goal.trajectory.points.reserve(Tf / Ts);
+
+  trajectory_msgs::MultiDOFJointTrajectoryPoint cartesian_point;
+
+  TooN::Vector<3, double> posizione_d;
+  sun::UnitQuaternion unit_quat_d;
+  while (ros::ok() && !cartesian_traj.isCompleate(t)) {
+
+    posizione_d = cartesian_traj.getPosition(t);
+    unit_quat_d = cartesian_traj.getQuaternion(t);
+
+    geometry_msgs::Transform transf;
+    transf.translation.x = posizione_d[0];
+    transf.translation.y = posizione_d[1];
+    transf.translation.z = posizione_d[2];
+    transf.rotation.w = unit_quat_d.getS();
+    transf.rotation.x = unit_quat_d.getV()[0];
+    transf.rotation.y = unit_quat_d.getV()[1];
+    transf.rotation.z = unit_quat_d.getV()[2];
+
+    trajectory_msgs::MultiDOFJointTrajectoryPoint cartesian_point;
+    cartesian_point.transforms.push_back(transf);
+    cartesian_point.time_from_start = ros::Duration(t);
+
+    cartesian_traj_goal.trajectory.points.push_back(cartesian_point);
+
+    t = t + Ts; // tempo trascorso
+  }
+
+  std::cout << "Cartesian Trajectory created, waiting for server then sending "
+               "goal \n";
+  cartesian_traj_ac.waitForServer();
+
+  cartesian_traj_ac.sendGoal(cartesian_traj_goal);
+
+  finished_before_timeout =
+      cartesian_traj_ac.waitForResult(ros::Duration(30.0));
+
+  if (finished_before_timeout) {
+    pick_and_place_libfranka::CartesianTrajectoryResultConstPtr result =
+        cartesian_traj_ac.getResult();
+    ROS_INFO("Action finished, success :  %d", result->success);
+  } else
+    ROS_INFO("Action did not finish before the time out.");
 
   return 0;
 }

@@ -40,7 +40,7 @@ protected:
     ros::Publisher state_pub_;
     std::unique_ptr<std::thread> publish_thread_;
     bool publish_command = false;
-    bool interpolate = true;
+    bool debugging = false;
     actionlib::SimpleActionServer<
         pick_and_place_libfranka::JointPointTrajectoryAction>
         joint_point_traj_as_;

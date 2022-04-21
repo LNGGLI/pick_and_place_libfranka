@@ -3,6 +3,10 @@
   <param name="robot_ip" value="10.224.20.198" />
   <param name="publish_command" value="true" />
 
+  <!-- If debugging is true no commands will be sent to the robot -->
+  <param name="debugging" value="true" />
+
+
   <!-- Run control node-->
   <node name="franka_control" type="franka_control" pkg="pick_and_place_libfranka" output="screen" />
 

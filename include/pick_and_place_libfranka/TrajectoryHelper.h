@@ -101,7 +101,6 @@ TooN::Matrix<TooN::Dynamic, 4, double> compute_poly_coefficients(
 
     // Solve system
     result[k] = TooN::gaussian_elimination(A, b);
-    
   }
 
   return result;
@@ -111,15 +110,15 @@ TooN::Matrix<TooN::Dynamic, 4, double> compute_poly_coefficients(
  * @brief Computes the coefficients of the polynomial functions used to
  * interpolate the given points. It uses 3rd degree polynomial functions and
  * the velocity at each path point is computed such that the robot doesn't
- * stop at each point.
+ * stop at each point. (Robotics Bruno Siciliano)
  * @param points: full trajectory as a
  * std::vector<trajectory_msgs::JointTrajectoryPoint>
  *
  * @return Vector of TooN Matrices: std::vector<TooN::Matrix<TooN::Dynamic, 4,
  * double>>. The vector will be composed of 7 matrices, one of each joint. Each
  * toon matrix contains the polynomial coefficents for the interpolation. Each
- * matrix is a N-1 x 4 where N is the number of given points. The coefficients
- * go from a0 to a3
+ * matrix is a N-1 x 4 where N is the number of given points (so N-1 polynomial
+ * functions). The coefficients go from a0 to a3
  *
  */
 std::vector<TooN::Matrix<TooN::Dynamic, 4, double>> // return type
@@ -137,9 +136,22 @@ compute_polynomial_interpolation(
   return polys;
 }
 
+/**
+ * @brief computes a the inverse kinematics corresponding to the given
+ * trajectory for the panda robot.
+ *
+ * @param initial_joint_state is used as a starting configuration for the clik.
+ * This configuration, with time_from_start = 0, will be the first point of the
+ * output.
+ * @param n_T_e omogeneous transformation matrix from flange to EE.
+ * @return a std::vector<trajectory_msgs::JointTrajectoryPoint> containing the
+ * joint configuration corresponding to the cartesian in the trajectory
+ * std::vector<trajectory_msgs::MultiDOFJointTrajectoryPoint>.
+ * **/
 std::vector<trajectory_msgs::JointTrajectoryPoint>
 panda_clik(std::vector<trajectory_msgs::MultiDOFJointTrajectoryPoint> &points,
-           const std::array<double, 7> &initial_joint_state) {
+           const std::array<double, 7> &initial_joint_state,
+           const TooN::Matrix<4, 4, double> &n_T_e) {
 
   // TooN::Matrix<4, 4, double> n_T_e(TooN::Data(0.7071, 0.7071, 0.0, 0.0,
   // -0.7071,
@@ -148,7 +160,6 @@ panda_clik(std::vector<trajectory_msgs::MultiDOFJointTrajectoryPoint> &points,
   //                                             0.0, 1.0));
 
   // Create robot object
-  TooN::Matrix<4, 4, double> n_T_e = TooN::Identity(4);
   sun::Panda panda(n_T_e, 1.0, "panda");
 
   // Result will be stored here
@@ -247,7 +258,7 @@ panda_clik(std::vector<trajectory_msgs::MultiDOFJointTrajectoryPoint> &points,
                        oldQ   // <- variabile di ritorno: Quaternione attuale
                               // (N.B. qui uso oldQ  in modo da aggiornare
                               // direttamente la variabile oldQ
-                       // e averla già pronta per la prossima iterazione)
+                            // e averla già pronta per la prossima iterazione)
     );
 
     // Update time. Do it after you have added the point so that for t = 0.0

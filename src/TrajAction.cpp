@@ -49,6 +49,10 @@ TrajAction::TrajAction()
     ROS_ERROR_STREAM("Param publish_command not found.");
   }
 
+  if (!nh_.getParam("debugging", debugging)) {
+    ROS_ERROR_STREAM("Param debugging not found.");
+  }
+
   try {
 
     // Connect to robot
@@ -75,11 +79,6 @@ TrajAction::TrajAction()
 
 TrajAction::~TrajAction(void) { publish_thread_->join(); }
 
-/**
- * @brief The first point of the goal trajectory must be the current
- * configuration with time_from_start = 0.
- *
- */
 void TrajAction::JointTrajCB(
     const pick_and_place_libfranka::JointTrajectoryGoalConstPtr &goal) {
 
@@ -93,22 +92,37 @@ void TrajAction::JointTrajCB(
   try {
 
     robot_mutex_.lock();
-
     std::vector<trajectory_msgs::JointTrajectoryPoint> points;
+
+    // Note: q_d (desired) not q (measured)
+    std::array<double, 7> initial_conf_std = robot_->readOnce().q_d;
+
+    // Add intial configuration as starting point if it is missing
+    if (goal->trajectory.points.front().time_from_start.toSec() != 0.0) {
+      trajectory_msgs::JointTrajectoryPoint initial_conf;
+
+      initial_conf.time_from_start = ros::Duration(0.0);
+      for (int i = 0; i < 7; i++)
+        initial_conf.positions.push_back(initial_conf_std[i]);
+      points.push_back(initial_conf);
+    }
+
+    // Fill the points vector with the desired trajectory
     for (long unsigned int i = 0; i < goal->trajectory.points.size(); i++)
       points.push_back(goal->trajectory.points[i]);
 
     // 3rd degree interpolation of the given points
-
     std::vector<TooN::Matrix<TooN::Dynamic, 4, double>> coeff =
         compute_polynomial_interpolation(points);
 
+    // Publish feedback
     double tf =
         points.back()
             .time_from_start.toSec(); // desired duration of the trajectory
     joint_traj_feedback.time_left = tf;
     joint_traj_as_.publishFeedback(joint_traj_feedback);
 
+    // Publishing variables
     sensor_msgs::JointState joint_state;
     joint_state.name = {"j1", "j2", "j3", "j4", "j5", "j6", "j7"};
     sensor_msgs::JointState joint_command;
@@ -155,7 +169,7 @@ void TrajAction::JointTrajCB(
       if (joint_traj_as_.isPreemptRequested() || !ros::ok()) {
         ROS_INFO("Preempted: Joint Trajectory \n ");
         // set the action state to preempted
-        joint_point_traj_as_.setPreempted();
+        joint_traj_as_.setPreempted();
         return franka::MotionFinished(franka::JointPositions(q_command));
       }
 
@@ -164,11 +178,15 @@ void TrajAction::JointTrajCB(
         p++;
 
       if (t < tf)
-        return franka::JointPositions(q_command);
+        return debugging ? franka::JointPositions(initial_conf_std)
+                         : franka::JointPositions(q_command);
       else {
-        std::cout << "Motion finished \n";
+        std::cout << "Joint Traj action finished \n";
         success = true;
-        return franka::MotionFinished(franka::JointPositions(q_command));
+        return debugging
+                   ? franka::MotionFinished(
+                         franka::JointPositions(initial_conf_std))
+                   : franka::MotionFinished(franka::JointPositions(q_command));
       }
     });
 
@@ -208,12 +226,9 @@ void TrajAction::JointPointTrajCB(
 
     do {
       initial_state = robot_->readOnce();
-      q_init_ = initial_state.q;
+      q_init_ = initial_state.q_d;
     } while (q_init_[3] ==
              0.0); // La quarta variabile di giunto è sempre negativa
-
-    // Doc:
-    // https://frankaemika.github.io/libfranka/classfranka_1_1Robot.html#a5b5ba0a4f2bfd20be963b05622e629e1
 
     joint_point_feedback.time_left = goal->desired_tf;
     std::array<double, 7> q_command;
@@ -267,12 +282,15 @@ void TrajAction::JointPointTrajCB(
       joint_point_feedback.time_left = goal->desired_tf - t;
       joint_point_traj_as_.publishFeedback(joint_point_feedback);
 
-      if (t < tf) {
-        return franka::JointPositions(q_command);
-      } else {
-        std::cout << "Motion finished \n";
+      if (t < tf)
+        return debugging ? franka::JointPositions(q_init_)
+                         : franka::JointPositions(q_command);
+      else {
+        std::cout << "Joint Point Traj action finished \n";
         success = true;
-        return franka::MotionFinished(franka::JointPositions(q_goal));
+        return debugging
+                   ? franka::MotionFinished(franka::JointPositions(q_init_))
+                   : franka::MotionFinished(franka::JointPositions(q_command));
       }
     });
 
@@ -291,90 +309,120 @@ void TrajAction::JointPointTrajCB(
   robot_mutex_.unlock();
 }
 
-/**
- * @brief The first point of the goal trajectory does not need to  be the
- * current pose.
+/** If the given trajectory has a starting point with time_from_start = 0 it
+ * gets deleted. The first configuration of the trajectory will always be the
+ * current configuration.
  *
- */
+ * **/
 void TrajAction::CartesianTrajCB(
     const pick_and_place_libfranka::CartesianTrajectoryGoalConstPtr &goal) {
-
-  pick_and_place_libfranka::CartesianTrajectoryFeedback cartesian_feedback;
+  using std::pow;
+  pick_and_place_libfranka::CartesianTrajectoryFeedback cartesian_traj_feedback;
   pick_and_place_libfranka::CartesianTrajectoryResult cartesian_result;
-
-  std::vector<trajectory_msgs::MultiDOFJointTrajectoryPoint> points;
-  for (long unsigned int i = 0; i < goal->trajectory.points.size(); i++)
-    points.push_back(goal->trajectory.points[i]);
-  robot_mutex_.lock();
+  ros::NodeHandle nh;
+  ros::Publisher command_publisher =
+      nh.advertise<sensor_msgs::JointState>("joint_command", 1);
 
   try {
+    robot_mutex_.lock();
 
-    double tf = goal->trajectory.points.back().time_from_start.toSec(); // s
+    // Extract cartesian trajectory
+    std::vector<trajectory_msgs::MultiDOFJointTrajectoryPoint> points;
+    for (long unsigned int i = 0; i < goal->trajectory.points.size(); i++)
+      points.push_back(goal->trajectory.points[i]);
 
-    cartesian_feedback.time_left = tf;
-    cartesian_traj_as_.publishFeedback(cartesian_feedback);
-
+    // Compute Joint trajectory with inverse kinematics
+    // The initial configuration will be added as first point of the trajectory
     std::vector<trajectory_msgs::JointTrajectoryPoint> joint_trajectory;
-    // std::array<double, 7> initial_configuration = robot_->readOnce().q;
-    std::array<double, 7> initial_configuration{
-        {0, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2, M_PI_4}};
+    std::array<double, 7> initial_configuration = robot_->readOnce().q_d;
 
-    joint_trajectory = panda_clik(points, initial_configuration);
+    TooN::Matrix<4, 4, double> n_T_e = TooN::Identity(4); // NO HAND attached
+    joint_trajectory = panda_clik(points, initial_configuration, n_T_e);
 
-    // CANCELLARE IL SETSUCCEDED
-    cartesian_result.success = true;
-    cartesian_traj_as_.setSucceeded(cartesian_result);
+    // 3rd degree interpolation of the given points
+    std::vector<TooN::Matrix<TooN::Dynamic, 4, double>> coeff =
+        compute_polynomial_interpolation(joint_trajectory);
 
-    // sensor_msgs::JointState joint_state;
-    // joint_state.name = {"j1", "j2", "j3", "j4", "j5", "j6", "j7"};
+    // Publish feedback
+    double tf = goal->trajectory.points.back().time_from_start.toSec(); // s
+    cartesian_traj_feedback.time_left = tf;
+    cartesian_traj_as_.publishFeedback(cartesian_traj_feedback);
 
-    // std::array<double, 7> q_command;
-    // bool success = false;
-    // double t = 0;
+    // Publishing variables
+    sensor_msgs::JointState joint_state;
+    joint_state.name = {"j1", "j2", "j3", "j4", "j5", "j6", "j7"};
+    sensor_msgs::JointState joint_command;
+    joint_command.name = {"j1", "j2", "j3", "j4", "j5", "j6", "j7"};
 
-    // robot_->control([&](const franka::RobotState &robot_state,
-    //                     franka::Duration period) -> franka::JointPositions {
-    //   // Publishing joint_state
-    //   joint_state.position.clear();
-    //   for (int i = 0; i < 7; i++) {
-    //     joint_state.position.push_back(robot_state.q[i]);
-    //   }
-    //   joint_state.header.stamp = ros::Time::now();
-    //   state_pub_.publish(joint_state);
+    // Start executing traj
+    std::array<double, 7> q_command;
+    double t = 0.0;
+    int p = 0; // tracks the polynomial coefficients that have to be used
+    bool success = false;
 
-    //   // Compute q_command
-    //   t += period.toSec();
+    robot_->control([&](const franka::RobotState &robot_state,
+                        franka::Duration period) -> franka::JointPositions {
+      // Publishing current joint_state
+      joint_state.position.clear();
+      for (int i = 0; i < 7; i++) {
+        joint_state.position.push_back(robot_state.q[i]);
+      }
+      joint_state.header.stamp = ros::Time::now();
+      state_pub_.publish(joint_state);
 
-    //   // Check if preempted
-    //   if (cartesian_traj_as_.isPreemptRequested() || !ros::ok()) {
-    //     ROS_INFO("Preempted: Cartesian Point Trajectory \n ");
-    //     // set the action state to preempted
-    //     cartesian_traj_as_.setPreempted();
-    //     return franka::MotionFinished(franka::JointPositions(q_command));
-    //   }
+      // track passing of time
+      t += period.toSec();
+      cartesian_traj_feedback.time_left = tf - t;
+      cartesian_traj_as_.publishFeedback(cartesian_traj_feedback);
 
-    //   // Publish feedback
-    //   cartesian_feedback.time_left = tf - t;
-    //   cartesian_traj_as_.publishFeedback(cartesian_feedback);
+      // Compute desired joint state
+      for (int joint = 0; joint < 7; joint++)
+        q_command[joint] = coeff[joint](p, 0) + coeff[joint](p, 1) * t +
+                           coeff[joint](p, 2) * pow(t, 2) +
+                           coeff[joint](p, 3) * pow(t, 3);
 
-    //   // Send command
-    //   if (t < tf) {
-    //     return franka::JointPositions(q_command);
-    //   } else {
-    //     std::cout << "Motion finished \n";
-    //     success = true;
-    //     return franka::MotionFinished(franka::JointPositions(q_command));
-    //   }
-    // });
+      // Publish joint command
+      if (publish_command) {
+        joint_command.position.clear();
+        for (int i = 0; i < 7; i++) {
+          joint_command.position.push_back(q_command[i]);
+        }
+        joint_command.header.stamp = ros::Time::now();
+        command_publisher.publish(joint_command);
+      }
 
-    // if (success) {
-    //   cartesian_result.success = true;
-    //   ROS_INFO("Succeeded: Cartesian Point Trajectory \n ");
-    //   // set the action state to succeeded
-    //   cartesian_traj_as_.setSucceeded(cartesian_result);
-    // }
+      // Check if the action has been preempteed
+      if (cartesian_traj_as_.isPreemptRequested() || !ros::ok()) {
+        ROS_INFO("Preempted: Joint Trajectory \n ");
+        // set the action state to preempted
+        cartesian_traj_as_.setPreempted();
+        return franka::MotionFinished(franka::JointPositions(q_command));
+      }
+
+      // Change polynomial coefficients / point
+      if (t > points[p + 1].time_from_start.toSec())
+        p++;
+
+      if (t < tf)
+        return debugging ? franka::JointPositions(initial_configuration)
+                         : franka::JointPositions(q_command);
+      else {
+        std::cout << "Cartesian Traj action finished \n";
+        success = true;
+        return debugging
+                   ? franka::MotionFinished(
+                         franka::JointPositions(initial_configuration))
+                   : franka::MotionFinished(franka::JointPositions(q_command));
+      }
+    });
+
+    if (success) {
+      cartesian_result.success = true;
+      ROS_INFO("Succeeded: Cartesian Point Trajectory \n ");
+      // set the action state to succeeded
+      cartesian_traj_as_.setSucceeded(cartesian_result);
+    }
   } catch (const franka::Exception &ex) {
-
     // print exception
     std::cout << ex.what() << std::endl;
   }
