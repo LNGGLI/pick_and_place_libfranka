@@ -347,7 +347,8 @@ void TrajAction::CartesianTrajCB(
     // Compute Joint trajectory with inverse kinematics
     // The initial configuration will be added as first point of the trajectory
     TooN::Matrix<4, 4, double> n_T_e = TooN::Identity(4); // NO HAND attached
-    joint_trajectory = panda_clik(points, initial_configuration, n_T_e);
+    double Ts = 0.001;
+    joint_trajectory = panda_clik(points, initial_configuration, n_T_e, Ts);
     std::cout << "Clik eseguito \n";
 
     // 3rd degree interpolation of the given points

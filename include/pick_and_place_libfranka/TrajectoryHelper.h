@@ -151,7 +151,7 @@ compute_polynomial_interpolation(
 std::vector<trajectory_msgs::JointTrajectoryPoint>
 panda_clik(std::vector<trajectory_msgs::MultiDOFJointTrajectoryPoint> &points,
            const std::array<double, 7> &initial_joint_state,
-           const TooN::Matrix<4, 4, double> &n_T_e) {
+           const TooN::Matrix<4, 4, double> &n_T_e, const double &Ts) {
 
   // TooN::Matrix<4, 4, double> n_T_e(TooN::Data(0.7071, 0.7071, 0.0, 0.0,
   // -0.7071,
@@ -174,7 +174,6 @@ panda_clik(std::vector<trajectory_msgs::MultiDOFJointTrajectoryPoint> &points,
   std::cout << "Dopo dell'eliminazione del primo punto \n";
 
   // CLIK parameters
-  double Ts = 0.001;  // period s
   double fs = 1 / Ts; // frequecy Hz
 
   double gain = 0.5 * fs;

@@ -62,6 +62,17 @@ CartesianPoint2CartesianTrajGoal(const CartesianPoint &point,
                                  const sun::Panda &panda) {
 
   pick_and_place_libfranka::CartesianTrajectoryGoal cartesian_traj_goal;
+  // Define temporal distance between points.
+
+  // Desired Tf
+  double Tf = point.Tf;
+  // Desired Pose
+  TooN::Vector<3, double> pf = point.position;
+  sun::UnitQuaternion final_quat(point.quaternion); // desired quaternion
+
+  // Compute Ts
+  int N_points = 100;
+  double Ts = Tf / N_points;
 
   // Get initial configuration
   ros::Rate slow_loop(100);
@@ -78,9 +89,6 @@ CartesianPoint2CartesianTrajGoal(const CartesianPoint &point,
   TooN::Vector<3> pi = sun::transl(initial_pose); // initial position
   sun::UnitQuaternion init_quat(initial_pose);    // initial orientation
 
-  // Desired Pose
-  TooN::Vector<3, double> pf = point.position;
-  sun::UnitQuaternion final_quat(point.quaternion); // desired quaternion
   // Nota: la traiettoria in orientamento è quella definita dal Delta_quat.
   // Perchè vogliamo andare da init_quat (orientamento iniziale) a final_quat
   // (orientamento finale). Il metodo getquaternion(t) restituisce DeltaQuat(t)
@@ -88,9 +96,6 @@ CartesianPoint2CartesianTrajGoal(const CartesianPoint &point,
   // corretta tra pi e pf.
   sun::UnitQuaternion delta_quat = final_quat * inv(init_quat);
   sun::AngVec angvec = delta_quat.toangvec();
-
-  // Desired Tf
-  double Tf = point.Tf;
 
   // Build line segment traj + Rotation Const Axis
 
@@ -103,10 +108,7 @@ CartesianPoint2CartesianTrajGoal(const CartesianPoint &point,
 
   sun::Cartesian_Independent_Traj cartesian_traj(line_traj, quat_traj);
 
-  // Define temporal distance between points.
-  double Ts = 0.001;
-
-  cartesian_traj_goal.trajectory.points.reserve((int)(Tf / Ts));
+  cartesian_traj_goal.trajectory.points.reserve(N_points + 1);
 
   trajectory_msgs::MultiDOFJointTrajectoryPoint cartesian_point;
 
