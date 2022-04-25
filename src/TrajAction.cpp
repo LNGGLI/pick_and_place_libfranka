@@ -15,7 +15,7 @@ void TrajAction::publish_state() {
       msg.position.clear();
 
       // Area critica
-      robot_mutex_.lock();
+      robot_mutex_->lock();
       joint_state = robot_->readOnce().q;
 
       for (int i = 0; i < 7; i++)
@@ -23,7 +23,7 @@ void TrajAction::publish_state() {
 
       state_pub_.publish(msg);
 
-      robot_mutex_.unlock();
+      robot_mutex_->unlock();
 
       loop_rate.sleep();
     }
@@ -33,7 +33,8 @@ void TrajAction::publish_state() {
   }
 }
 
-TrajAction::TrajAction()
+TrajAction::TrajAction(std::shared_ptr<franka::Robot> panda,
+                       std::shared_ptr<std::mutex> robot_mutex)
     : joint_point_traj_as_(nh_, "joint_point_traj",
                            boost::bind(&TrajAction::JointPointTrajCB, this, _1),
                            false),
@@ -42,11 +43,6 @@ TrajAction::TrajAction()
       cartesian_traj_as_(nh_, "cartesian_traj",
                          boost::bind(&TrajAction::CartesianTrajCB, this, _1),
                          false) {
-
-  std::string robot_IP;
-  if (!nh_.getParam("robot_ip", robot_IP)) {
-    ROS_ERROR_STREAM("Param robot_ip not found.");
-  }
 
   if (!nh_.getParam("publish_command", publish_command)) {
     ROS_ERROR_STREAM("Param publish_command not found.");
@@ -59,7 +55,10 @@ TrajAction::TrajAction()
   try {
 
     // Connect to robot
-    robot_ = std::make_unique<franka::Robot>(robot_IP);
+    robot_ = panda;
+
+    // Robot mutex
+    robot_mutex_ = robot_mutex;
 
     setDefaultBehavior(*robot_);
 
@@ -88,7 +87,7 @@ void TrajAction::JointPointTrajCB(
   pick_and_place_libfranka::JointPointTrajectoryFeedback joint_point_feedback;
   pick_and_place_libfranka::JointPointTrajectoryResult joint_point_result;
 
-  robot_mutex_.lock();
+  robot_mutex_->lock();
   ros::NodeHandle nh;
   ros::Publisher command_publisher =
       nh.advertise<sensor_msgs::JointState>("joint_command", 1);
@@ -184,7 +183,7 @@ void TrajAction::JointPointTrajCB(
     std::cout << ex.what() << std::endl;
   }
 
-  robot_mutex_.unlock();
+  robot_mutex_->unlock();
 }
 
 /** If the given trajectory has a starting point with time_from_start = 0 it
@@ -203,7 +202,7 @@ void TrajAction::JointTrajCB(
 
   try {
 
-    robot_mutex_.lock();
+    robot_mutex_->lock();
     std::vector<trajectory_msgs::JointTrajectoryPoint> points;
 
     // Note: q_d (desired) not q (measured)
@@ -317,7 +316,7 @@ void TrajAction::JointTrajCB(
     std::cout << ex.what() << std::endl;
   }
 
-  robot_mutex_.unlock();
+  robot_mutex_->unlock();
 }
 
 /** If the given trajectory has a starting point with time_from_start = 0 it
@@ -334,7 +333,7 @@ void TrajAction::CartesianTrajCB(
       nh.advertise<sensor_msgs::JointState>("joint_command", 1);
 
   try {
-    robot_mutex_.lock();
+    robot_mutex_->lock();
 
     // Extract cartesian trajectory
     std::vector<trajectory_msgs::MultiDOFJointTrajectoryPoint> points;
@@ -443,5 +442,5 @@ void TrajAction::CartesianTrajCB(
     std::cout << ex.what() << std::endl;
   }
 
-  robot_mutex_.unlock();
+  robot_mutex_->unlock();
 }

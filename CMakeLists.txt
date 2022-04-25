@@ -83,6 +83,7 @@ add_action_files(
   JointPointTrajectory.action
   JointTrajectory.action
   CartesianTrajectory.action
+  GripperMove.action
 )
 
 ## Generate added messages and services with any dependencies listed here
@@ -169,6 +170,11 @@ add_library(traj_action
 src/TrajAction.cpp
 )
 
+add_library(gripper_action
+src/GripperAction.cpp
+)
+
+
 target_link_libraries(traj_action ${catkin_LIBRARIES} ${Franka_LIBRARIES} examples_common Panda)
 
 ## Declare a C++ executable
@@ -196,6 +202,7 @@ add_executable(trajectory_node_libfranka src/trajectory_node.cpp)
    ${Franka_LIBRARIES}
    examples_common
    traj_action
+   gripper_action
  )
 
  target_link_libraries(test_node

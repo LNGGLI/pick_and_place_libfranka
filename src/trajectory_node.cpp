@@ -1,8 +1,6 @@
 
 #include <pick_and_place_libfranka/trajectory_node.h>
 
-using namespace trajectory;
-
 int main(int argc, char **argv) {
 
   ros::init(argc, argv, "trajectory_node");
@@ -75,44 +73,15 @@ int main(int argc, char **argv) {
 
   /******** CARTESIAN TRAJECTORY ACTION ***********/
   {
-    pick_and_place_libfranka::CartesianTrajectoryGoal cartesian_traj_goal;
 
-    actionlib::SimpleActionClient<
-        pick_and_place_libfranka::CartesianTrajectoryAction>
-        cartesian_traj_ac("cartesian_traj", true);
-    cartesian_traj_ac.waitForServer();
-
-    // TooN::Matrix<4, 4, double> n_T_e(TooN::Data(0.7071, 0.7071, 0.0, 0.0,
-    //                                             -0.7071,
-    //                                             0.7071, 0.0, 0.0, 0.0,
-    //                                             0.0, 1.0, 0.1034, 0.0, 0.0,
-    //                                             0.0, 1.0));
-    // Quando viene montato il gripper assicurarsi che pz sia impostato su
-    // AppDesk a 0.1034 prima di utilizzare questa matrice di trasformazione
-    TooN::Matrix<4, 4, double> n_T_e = TooN::Identity(4);
-    sun::Panda panda(n_T_e, 1.0, "panda");
-
-    CartesianPoint final_pose;
+    CartesianPoint desired_pose;
     TooN::Matrix<3, 3, double> R_ortogonal =
         TooN::Data(1.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, -1.0);
-    final_pose.position = TooN::makeVector(0.5, 0.2, 0.3);
-    final_pose.quaternion =
+    desired_pose.position = TooN::makeVector(0.5, 0.2, 0.3);
+    desired_pose.quaternion =
         sun::UnitQuaternion(R_ortogonal * sun::roty(30.0 * M_PI / 180.0));
-    final_pose.Tf = 10;
-
-    cartesian_traj_goal = CartesianPoint2CartesianTrajGoal(final_pose, panda);
-
-    cartesian_traj_ac.sendGoal(cartesian_traj_goal);
-
-    bool finished_before_timeout =
-        cartesian_traj_ac.waitForResult(ros::Duration(30.0));
-
-    if (finished_before_timeout) {
-      pick_and_place_libfranka::CartesianTrajectoryResultConstPtr result =
-          cartesian_traj_ac.getResult();
-      ROS_INFO("Action finished, success :  %d", result->success);
-    } else
-      ROS_INFO("Action did not finish before the time out.");
+    desired_pose.Tf = 10;
+    set_goal_and_call_action(desired_pose);
   }
 
   return 0;

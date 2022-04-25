@@ -35,7 +35,7 @@ class TrajAction {
 protected:
   ros::NodeHandle nh_;
   std::shared_ptr<franka::Robot> robot_;
-  std::mutex robot_mutex_;
+  std::shared_ptr<std::mutex> robot_mutex_;
   ros::Publisher state_pub_;
   std::unique_ptr<std::thread> publish_thread_;
   bool publish_command = false;
@@ -55,7 +55,8 @@ protected:
   void publish_state();
 
 public:
-  TrajAction();
+  TrajAction(std::shared_ptr<franka::Robot> panda,
+             std::shared_ptr<std::mutex> robot_mutex);
 
   ~TrajAction(void);
 

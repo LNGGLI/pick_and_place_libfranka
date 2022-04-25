@@ -11,6 +11,7 @@
 // Server , Actions
 #include <actionlib/client/simple_action_client.h>
 #include <pick_and_place_libfranka/CartesianTrajectoryAction.h>
+#include <pick_and_place_libfranka/GripperAction.h>
 #include <pick_and_place_libfranka/JointTrajectoryAction.h>
 // Utils
 #include <TooN/TooN.h>
@@ -27,10 +28,10 @@
 // Messages e Srv
 #include <sensor_msgs/JointState.h>
 #include <trajectory_msgs/JointTrajectory.h>
+
 #include <trajectory_msgs/JointTrajectoryPoint.h>
 #include <trajectory_msgs/MultiDOFJointTrajectory.h>
 
-namespace trajectory {
 bool state_read = false;
 std::array<double, 7> current_state;
 
@@ -136,6 +137,41 @@ CartesianPoint2CartesianTrajGoal(const CartesianPoint &point,
   return cartesian_traj_goal;
 }
 
+bool set_goal_and_call_action(const CartesianPoint &cartesian_goal) {
+
+  // Client creation
+  static actionlib::SimpleActionClient<
+      pick_and_place_libfranka::CartesianTrajectoryAction>
+      cartesian_traj_ac("cartesian_traj", true);
+  cartesian_traj_ac.waitForServer();
+
+  // Panda object creation ( needed for computing the trajectory)
+  // TooN::Matrix<4, 4, double> n_T_e(TooN::Data(0.7071, 0.7071, 0.0, 0.0,
+  //                                             -0.7071,
+  //                                             0.7071, 0.0, 0.0, 0.0,
+  //                                             0.0, 1.0, 0.1034, 0.0, 0.0,
+  //                                             0.0, 1.0));
+  // Quando viene montato il gripper assicurarsi che pz sia impostato su
+  // AppDesk a 0.1034 prima di utilizzare questa matrice di trasformazione
+
+  static TooN::Matrix<4, 4, double> n_T_e = TooN::Identity(4);
+  static sun::Panda panda(n_T_e, 1.0, "panda");
+
+  pick_and_place_libfranka::CartesianTrajectoryGoal cartesian_traj_goal;
+  cartesian_traj_goal = CartesianPoint2CartesianTrajGoal(cartesian_goal, panda);
+  cartesian_traj_ac.sendGoal(cartesian_traj_goal);
+
+  bool finished_before_timeout =
+      cartesian_traj_ac.waitForResult(ros::Duration(30.0));
+
+  if (finished_before_timeout) {
+    pick_and_place_libfranka::CartesianTrajectoryResultConstPtr result =
+        cartesian_traj_ac.getResult();
+    ROS_INFO("Action finished, success :  %d", result->success);
+  } else
+    ROS_INFO("Action did not finish before the time out.");
+}
+
 /**
  * @brief Commands the gripper to move to the desired width at the desired
  * velocity.
@@ -147,27 +183,26 @@ CartesianPoint2CartesianTrajGoal(const CartesianPoint &point,
  */
 bool gripper_move(const double &width, const double &speed) {
 
-  // MoveClient move_client("/franka_gripper/move");
-  // move_client.waitForServer();
-  // franka_gripper::MoveGoal move_goal;
-  // move_goal.width = width;
-  // move_goal.speed = speed;
+  actionlib::SimpleActionClient<pick_and_place_libfranka::GripperMoveAction>
+      move_client("gripper_move");
+  move_client.waitForServer();
+  pick_and_place_libfranka::GripperMoveGoal move_goal;
+  move_goal.desired_speed = speed;
+  move_goal.desired_width = width;
 
-  // move_client.sendGoal(move_goal);
-  // bool finished_before_timeout =
-  // move_client.waitForResult(ros::Duration(10.0));
+  move_client.sendGoal(move_goal);
+  bool finished_before_timeout = move_client.waitForResult(ros::Duration(10.0));
 
-  // if (finished_before_timeout) {
-  //   franka_gripper::MoveResultConstPtr result = move_client.getResult();
-  //   if (!result->success == true) {
-  //     std::cout << "Move fallita \n";
-  //   }
+  if (finished_before_timeout) {
+    pick_and_place_libfranka::GripperMoveResultConstPtr result =
+        move_client.getResult();
+    if (result->success != true) {
+      std::cout << "Move failed \n";
+    }
 
-  //   return result->success;
-  // } else {
-  //   std::cout << "Move action did not finish before the time out. \n";
-  //   return false;
-  // }
+    return result->success;
+  } else {
+    std::cout << "Move action did not finish before the time out. \n";
+    return false;
+  }
 }
-
-} // namespace trajectory

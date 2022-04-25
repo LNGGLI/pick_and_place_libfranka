@@ -34,6 +34,7 @@
 
 // Messaggi, servizi e azioni
 #include <actionlib/server/simple_action_server.h>
+#include <pick_and_place_libfranka/GripperAction.h>
 #include <pick_and_place_libfranka/JointPointTrajectoryAction.h>
 #include <pick_and_place_libfranka/TrajAction.h>
 #include <sensor_msgs/JointState.h>
@@ -46,13 +47,7 @@
   https://frankaemika.github.io/libfranka/classfranka_1_1Model.html
   Documentazione classe franka::RobotState:
   https://frankaemika.github.io/libfranka/structfranka_1_1RobotState.html
-
-  Nota3: la documentazione della libreria Eigen3 è reperibile al link
-  https://eigen.tuxfamily.org/dox/. Se si è familiari con l'utilizzo del Matlab
-  si consiglia di dare uno sguardo al seguente cheat sheet:
-  https://eigen.tuxfamily.org/dox/AsciiQuickReference.txt
-
- */
+**/
 
 using namespace franka_node;
 
@@ -60,7 +55,21 @@ int main(int argc, char **argv) {
 
   ros::init(argc, argv, "franka_node");
   ros::NodeHandle nh;
-  TrajAction traj_action;
+  std::string robot_IP;
+
+  // Robot object creation
+  if (!nh.getParam("robot_ip", robot_IP)) {
+    ROS_ERROR_STREAM("Param robot_ip not found.");
+  }
+  std::shared_ptr<franka::Robot> panda =
+      std::make_shared<franka::Robot>(robot_IP);
+
+  std::shared_ptr<std::mutex> robot_mutex;
+  // Start Action Servers for control
+  TrajAction traj_action(panda, robot_mutex);
+
+  // Start Action Servers for gripper
+  GripperAction gripper_action(panda, robot_mutex);
 
   ros::spin();
 
