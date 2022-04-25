@@ -30,41 +30,41 @@
 #include <sensor_msgs/JointState.h>
 #include <trajectory_msgs/JointTrajectoryPoint.h>
 
-class TrajAction
-{
+class TrajAction {
 
 protected:
-    ros::NodeHandle nh_;
-    std::shared_ptr<franka::Robot> robot_;
-    std::mutex robot_mutex_;
-    ros::Publisher state_pub_;
-    std::unique_ptr<std::thread> publish_thread_;
-    bool publish_command = false;
-    bool debugging = false;
-    actionlib::SimpleActionServer<
-        pick_and_place_libfranka::JointPointTrajectoryAction>
-        joint_point_traj_as_;
+  ros::NodeHandle nh_;
+  std::shared_ptr<franka::Robot> robot_;
+  std::mutex robot_mutex_;
+  ros::Publisher state_pub_;
+  std::unique_ptr<std::thread> publish_thread_;
+  bool publish_command = false;
+  bool debugging = false;
 
-    actionlib::SimpleActionServer<pick_and_place_libfranka::JointTrajectoryAction>
-        joint_traj_as_;
+  actionlib::SimpleActionServer<
+      pick_and_place_libfranka::JointPointTrajectoryAction>
+      joint_point_traj_as_;
 
-    actionlib::SimpleActionServer<
-        pick_and_place_libfranka::CartesianTrajectoryAction>
-        cartesian_traj_as_;
+  actionlib::SimpleActionServer<pick_and_place_libfranka::JointTrajectoryAction>
+      joint_traj_as_;
 
-    void publish_state();
+  actionlib::SimpleActionServer<
+      pick_and_place_libfranka::CartesianTrajectoryAction>
+      cartesian_traj_as_;
+
+  void publish_state();
 
 public:
-    TrajAction();
+  TrajAction();
 
-    ~TrajAction(void);
+  ~TrajAction(void);
 
-    void JointPointTrajCB(
-        const pick_and_place_libfranka::JointPointTrajectoryGoalConstPtr &goal);
+  void JointPointTrajCB(
+      const pick_and_place_libfranka::JointPointTrajectoryGoalConstPtr &goal);
 
-    void JointTrajCB(
-        const pick_and_place_libfranka::JointTrajectoryGoalConstPtr &goal);
+  void JointTrajCB(
+      const pick_and_place_libfranka::JointTrajectoryGoalConstPtr &goal);
 
-    void CartesianTrajCB(
-        const pick_and_place_libfranka::CartesianTrajectoryGoalConstPtr &goal);
+  void CartesianTrajCB(
+      const pick_and_place_libfranka::CartesianTrajectoryGoalConstPtr &goal);
 };

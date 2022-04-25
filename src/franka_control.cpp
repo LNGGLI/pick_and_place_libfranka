@@ -55,8 +55,6 @@
  */
 
 using namespace franka_node;
-using JointPointActionServer = actionlib::SimpleActionServer<
-    pick_and_place_libfranka::JointPointTrajectoryAction>;
 
 int main(int argc, char **argv) {
 

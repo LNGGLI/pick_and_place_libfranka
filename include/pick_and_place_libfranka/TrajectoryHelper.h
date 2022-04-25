@@ -139,14 +139,14 @@ compute_polynomial_interpolation(
 /**
  * @brief computes a the inverse kinematics corresponding to the given
  * trajectory for the panda robot.
- *
+ * @param points vector of trajectory points that describes the desired task
+ * space trajectory
  * @param initial_joint_state is used as a starting configuration for the clik.
  * This configuration, with time_from_start = 0, will be the first point of the
  * output.
  * @param n_T_e omogeneous transformation matrix from flange to EE.
- * @return a std::vector<trajectory_msgs::JointTrajectoryPoint> containing the
- * joint configuration corresponding to the cartesian in the trajectory
- * std::vector<trajectory_msgs::MultiDOFJointTrajectoryPoint>.
+ * @return the joint configuration corresponding to the desired cartesian in the
+ * trajectory.
  * **/
 std::vector<trajectory_msgs::JointTrajectoryPoint>
 panda_clik(std::vector<trajectory_msgs::MultiDOFJointTrajectoryPoint> &points,
