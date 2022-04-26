@@ -16,14 +16,15 @@ void TrajAction::publish_state() {
 
       // Area critica
       robot_mutex_->lock();
+
       joint_state = robot_->readOnce().q;
+
+      robot_mutex_->unlock();
 
       for (int i = 0; i < 7; i++)
         msg.position.push_back(joint_state[i]);
 
       state_pub_.publish(msg);
-
-      robot_mutex_->unlock();
 
       loop_rate.sleep();
     }
@@ -34,7 +35,7 @@ void TrajAction::publish_state() {
 }
 
 TrajAction::TrajAction(std::shared_ptr<franka::Robot> panda,
-                       std::shared_ptr<std::mutex> robot_mutex)
+                       std::mutex *robot_mutex)
     : joint_point_traj_as_(nh_, "joint_point_traj",
                            boost::bind(&TrajAction::JointPointTrajCB, this, _1),
                            false),
@@ -217,7 +218,6 @@ void TrajAction::JointTrajCB(
     initial_conf.time_from_start = ros::Duration(0.0);
     for (int i = 0; i < 7; i++)
       initial_conf.positions.push_back(initial_conf_std[i]);
-    points.push_back(initial_conf);
 
     // If the desired trajectory defines a starting point just cancel it
     if (points.front().time_from_start.toSec() == 0.0) {
@@ -234,6 +234,7 @@ void TrajAction::JointTrajCB(
     double tf =
         points.back()
             .time_from_start.toSec(); // desired duration of the trajectory
+
     joint_traj_feedback.time_left = tf;
     joint_traj_as_.publishFeedback(joint_traj_feedback);
 
@@ -314,6 +315,8 @@ void TrajAction::JointTrajCB(
   } catch (const franka::Exception &ex) {
     // print exception
     std::cout << ex.what() << std::endl;
+    joint_traj_result.success = false;
+    joint_traj_as_.setSucceeded(joint_traj_result);
   }
 
   robot_mutex_->unlock();
@@ -417,7 +420,6 @@ void TrajAction::CartesianTrajCB(
         p++;
 
       if (t < tf) {
-        std::cout << "Invio comando \n";
         return debugging ? franka::JointPositions(initial_configuration)
                          : franka::JointPositions(q_command);
       }

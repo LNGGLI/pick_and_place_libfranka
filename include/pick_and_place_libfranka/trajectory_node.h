@@ -166,12 +166,13 @@ bool set_goal_and_call_action(const CartesianPoint &cartesian_goal) {
   bool finished_before_timeout =
       cartesian_traj_ac.waitForResult(ros::Duration(30.0));
 
+  pick_and_place_libfranka::CartesianTrajectoryResultConstPtr result;
   if (finished_before_timeout) {
-    pick_and_place_libfranka::CartesianTrajectoryResultConstPtr result =
-        cartesian_traj_ac.getResult();
+    result = cartesian_traj_ac.getResult();
     ROS_INFO("Action finished, success :  %d", result->success);
   } else
     ROS_INFO("Action did not finish before the time out.");
+  return result->success;
 }
 
 /**

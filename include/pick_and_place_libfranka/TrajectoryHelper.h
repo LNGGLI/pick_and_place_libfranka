@@ -166,12 +166,9 @@ panda_clik(std::vector<trajectory_msgs::MultiDOFJointTrajectoryPoint> &points,
   // Result will be stored here
   std::vector<trajectory_msgs::JointTrajectoryPoint> joint_traj;
 
-  std::cout << "Prima dell'eliminazione del primo punto \n";
   if (points[0].time_from_start.toSec() == 0.0) {
     points.erase(points.begin());
   }
-
-  std::cout << "Dopo dell'eliminazione del primo punto \n";
 
   // CLIK parameters
   double fs = 1 / Ts; // frequecy Hz
@@ -216,7 +213,6 @@ panda_clik(std::vector<trajectory_msgs::MultiDOFJointTrajectoryPoint> &points,
 
   ros::Rate lp(1000); // da usare solo per la pubblicazione poi andrà tolto
 
-  std::cout << "Prima del clik \n";
   while (t < tf) {
 
     // Save joint_point

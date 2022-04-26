@@ -61,15 +61,16 @@ int main(int argc, char **argv) {
   if (!nh.getParam("robot_ip", robot_IP)) {
     ROS_ERROR_STREAM("Param robot_ip not found.");
   }
+
   std::shared_ptr<franka::Robot> panda =
       std::make_shared<franka::Robot>(robot_IP);
 
-  std::shared_ptr<std::mutex> robot_mutex;
+  std::mutex robot_mutex;
   // Start Action Servers for control
-  TrajAction traj_action(panda, robot_mutex);
+  TrajAction traj_action(panda, &robot_mutex);
 
   // Start Action Servers for gripper
-  GripperAction gripper_action(panda, robot_mutex);
+  // GripperAction gripper_action(panda, robot_mutex);
 
   ros::spin();
 
