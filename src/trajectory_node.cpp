@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
 
   double t = 0.0;    // s
   double Ts = 0.001; // s
-  double Tf = 10.0;  // s
+  double Tf = 4.0;   // s
 
   pick_and_place_libfranka::JointTrajectoryGoal joint_traj_goal;
   joint_traj_goal.trajectory.joint_names = {"j1", "j2", "j3", "j4",
@@ -54,13 +54,7 @@ int main(int argc, char **argv) {
 
     t = t + Ts; // tempo trascorso
   }
-  std::cout
-      << "Trajectory created, waiting for server then sending goal,size : "
-      << joint_traj_goal.trajectory.points.size() << " \n";
 
-  std::cout << "tf finale = "
-            << joint_traj_goal.trajectory.points.back().time_from_start.toSec()
-            << "\n";
   joint_traj_ac.waitForServer();
   std::cout << "Server attivo \n";
 
@@ -77,17 +71,17 @@ int main(int argc, char **argv) {
     ROS_INFO("Action did not finish before the time out.");
 
   /******** CARTESIAN TRAJECTORY ACTION ***********/
-  // {
+  {
 
-  //   CartesianPoint desired_pose;
-  //   TooN::Matrix<3, 3, double> R_ortogonal =
-  //       TooN::Data(1.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, -1.0);
-  //   desired_pose.position = TooN::makeVector(0.5, 0.0, 0.3);
-  //   desired_pose.quaternion =
-  //       sun::UnitQuaternion(R_ortogonal * sun::roty(30.0 * M_PI / 180.0));
-  //   desired_pose.Tf = 10;
-  //   set_goal_and_call_action(desired_pose);
-  // }
+    CartesianPoint desired_pose;
+    TooN::Matrix<3, 3, double> R_ortogonal =
+        TooN::Data(1.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, -1.0);
+    desired_pose.position = TooN::makeVector(0.5, 0.0, 0.3);
+    desired_pose.quaternion =
+        sun::UnitQuaternion(R_ortogonal); // * sun::roty(30.0 * M_PI / 180.0)
+    desired_pose.Tf = 20;
+    set_goal_and_call_action(desired_pose);
+  }
 
   return 0;
 }

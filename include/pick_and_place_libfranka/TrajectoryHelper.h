@@ -207,13 +207,11 @@ panda_clik(std::vector<trajectory_msgs::MultiDOFJointTrajectoryPoint> &points,
 
   // control variables
   int point = 0;
-  double tf = points.back().time_from_start.toSec();
-  joint_traj.reserve((int)(tf / Ts));
+  double Tf = points.back().time_from_start.toSec();
+  joint_traj.reserve((int)(Tf / Ts));
   double t = 0.0;
 
-  ros::Rate lp(1000); // da usare solo per la pubblicazione poi andrà tolto
-
-  while (t < tf) {
+  while (t < Tf) {
 
     // Save joint_point
     joint_point.time_from_start =
@@ -269,8 +267,6 @@ panda_clik(std::vector<trajectory_msgs::MultiDOFJointTrajectoryPoint> &points,
     if (t >= points[point + 1].time_from_start.toSec()) {
       point++;
     }
-
-    lp.sleep();
   }
 
   std::cout << "Fine del clik \n";

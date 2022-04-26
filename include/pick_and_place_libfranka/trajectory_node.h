@@ -71,8 +71,8 @@ CartesianPoint2CartesianTrajGoal(const CartesianPoint &point,
   sun::UnitQuaternion final_quat(point.quaternion); // desired quaternion
 
   // Compute Ts
-  int N_points = 100;
-  double Ts = Tf / N_points;
+  double Ts = 1;
+  int N_points = Tf / Ts;
 
   // Get initial configuration
   ros::Rate slow_loop(100);
@@ -161,10 +161,12 @@ bool set_goal_and_call_action(const CartesianPoint &cartesian_goal) {
 
   pick_and_place_libfranka::CartesianTrajectoryGoal cartesian_traj_goal;
   cartesian_traj_goal = CartesianPoint2CartesianTrajGoal(cartesian_goal, panda);
+  std::cout << "Cartesian Traj Goal created. Sending goal \n";
   cartesian_traj_ac.sendGoal(cartesian_traj_goal);
 
+  std::cout << "Waiting for result \n";
   bool finished_before_timeout =
-      cartesian_traj_ac.waitForResult(ros::Duration(30.0));
+      cartesian_traj_ac.waitForResult(ros::Duration(cartesian_goal.Tf * 3));
 
   pick_and_place_libfranka::CartesianTrajectoryResultConstPtr result;
   if (finished_before_timeout) {

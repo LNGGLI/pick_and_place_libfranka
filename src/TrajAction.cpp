@@ -345,22 +345,22 @@ void TrajAction::CartesianTrajCB(
 
     std::vector<trajectory_msgs::JointTrajectoryPoint> joint_trajectory;
     std::array<double, 7> initial_configuration =
-        robot_->readOnce().q_d; // q_d instead of q
+        robot_->readOnce().q_d; // q_d instead of q. If debugging is on then qd
+                                // will be different from q
 
     // Compute Joint trajectory with inverse kinematics
     // The initial configuration will be added as first point of the trajectory
     TooN::Matrix<4, 4, double> n_T_e = TooN::Identity(4); // NO HAND attached
     double Ts = 0.001;
     joint_trajectory = panda_clik(points, initial_configuration, n_T_e, Ts);
-    std::cout << "Clik eseguito \n";
 
     // 3rd degree interpolation of the given points
+
     std::vector<TooN::Matrix<TooN::Dynamic, 4, double>> coeff =
         compute_polynomial_interpolation(joint_trajectory);
-    std::cout << "Interpolazione eseguita \n";
 
     // Publish feedback
-    double tf = goal->trajectory.points.back().time_from_start.toSec(); // s
+    double tf = joint_trajectory.back().time_from_start.toSec(); // s
     cartesian_traj_feedback.time_left = tf;
     cartesian_traj_as_.publishFeedback(cartesian_traj_feedback);
 
@@ -376,6 +376,7 @@ void TrajAction::CartesianTrajCB(
     int p = 0; // tracks the polynomial coefficients that have to be used
     bool success = false;
 
+    t = 0.0;
     robot_->control([&](const franka::RobotState &robot_state,
                         franka::Duration period) -> franka::JointPositions {
       // Publishing current joint_state
@@ -420,6 +421,7 @@ void TrajAction::CartesianTrajCB(
         p++;
 
       if (t < tf) {
+
         return debugging ? franka::JointPositions(initial_configuration)
                          : franka::JointPositions(q_command);
       }
@@ -442,6 +444,8 @@ void TrajAction::CartesianTrajCB(
     }
   } catch (const franka::Exception &ex) {
     // print exception
+    cartesian_result.success = false;
+    cartesian_traj_as_.setSucceeded(cartesian_result);
     std::cout << ex.what() << std::endl;
   }
 
