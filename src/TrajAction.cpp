@@ -144,6 +144,7 @@ void TrajAction::JointPointTrajCB(
         ROS_INFO("Preempted: Joint Point Trajectory \n ");
         // set the action state to preempted
         joint_point_traj_as_.setPreempted();
+        // Evitare il motion finished diretto (robot is still moving)
         return franka::MotionFinished(franka::JointPositions(q_command));
       }
 
@@ -286,6 +287,7 @@ void TrajAction::JointTrajCB(
         ROS_INFO("Preempted: Joint Trajectory \n ");
         // set the action state to preempted
         joint_traj_as_.setPreempted();
+        // Evitare il motion finished diretto (robot is still moving)
         return franka::MotionFinished(franka::JointPositions(q_command));
       }
 
@@ -334,6 +336,7 @@ void TrajAction::CartesianTrajCB(
   ros::NodeHandle nh;
   ros::Publisher command_publisher =
       nh.advertise<sensor_msgs::JointState>("joint_command", 1);
+  std::array<double, 7> final_command;
 
   try {
     robot_mutex_->lock();
@@ -376,7 +379,6 @@ void TrajAction::CartesianTrajCB(
     int p = 0; // tracks the polynomial coefficients that have to be used
     bool success = false;
 
-    t = 0.0;
     robot_->control([&](const franka::RobotState &robot_state,
                         franka::Duration period) -> franka::JointPositions {
       // Publishing current joint_state
@@ -413,6 +415,7 @@ void TrajAction::CartesianTrajCB(
         ROS_INFO("Preempted: Joint Trajectory \n ");
         // set the action state to preempted
         cartesian_traj_as_.setPreempted();
+        // Evitare il motion finished diretto (robot is still moving)
         return franka::MotionFinished(franka::JointPositions(q_command));
       }
 
@@ -427,6 +430,7 @@ void TrajAction::CartesianTrajCB(
       }
 
       else {
+
         std::cout << "Cartesian Traj action finished \n";
         success = true;
         return debugging

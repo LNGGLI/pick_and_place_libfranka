@@ -62,17 +62,17 @@ CartesianPoint2CartesianTrajGoal(const CartesianPoint &point,
                                  const sun::Panda &panda) {
 
   pick_and_place_libfranka::CartesianTrajectoryGoal cartesian_traj_goal;
-  // Define temporal distance between points.
 
   // Desired Tf
   double Tf = point.Tf;
+
+  // Define temporal distance between points.
+  double Ts = 0.001;
+  int N_points = Tf / Ts;
+
   // Desired Pose
   TooN::Vector<3, double> pf = point.position;
   sun::UnitQuaternion final_quat(point.quaternion); // desired quaternion
-
-  // Compute Ts
-  double Ts = 1;
-  int N_points = Tf / Ts;
 
   // Get initial configuration
   ros::Rate slow_loop(100);
@@ -161,7 +161,9 @@ bool set_goal_and_call_action(const CartesianPoint &cartesian_goal) {
 
   pick_and_place_libfranka::CartesianTrajectoryGoal cartesian_traj_goal;
   cartesian_traj_goal = CartesianPoint2CartesianTrajGoal(cartesian_goal, panda);
-  std::cout << "Cartesian Traj Goal created. Sending goal \n";
+  std::cout << "Cartesian Traj Goal created. N_points = "
+            << cartesian_traj_goal.trajectory.points.size()
+            << " Sending goal \n";
   cartesian_traj_ac.sendGoal(cartesian_traj_goal);
 
   std::cout << "Waiting for result \n";

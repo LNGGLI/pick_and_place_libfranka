@@ -30,47 +30,52 @@ int main(int argc, char **argv) {
   double Ts = 0.001; // s
   double Tf = 4.0;   // s
 
-  pick_and_place_libfranka::JointTrajectoryGoal joint_traj_goal;
-  joint_traj_goal.trajectory.joint_names = {"j1", "j2", "j3", "j4",
-                                            "j5", "j6", "j7"};
-  trajectory_msgs::JointTrajectoryPoint point;
+  /*** TRAIETTORIA SPAZIO GIUNTI ***/
+  // pick_and_place_libfranka::JointTrajectoryGoal joint_traj_goal;
+  // joint_traj_goal.trajectory.joint_names = {"j1", "j2", "j3", "j4",
+  //                                           "j5", "j6", "j7"};
+  // trajectory_msgs::JointTrajectoryPoint point;
 
-  std::cout << "Creazione traiettoria \n";
-  while (ros::ok() && t <= Tf) {
+  // std::cout << "Creazione traiettoria spazio giunti \n";
+  // while (ros::ok() && t <= Tf)
+  // {
 
-    double tau = t / Tf; // asse dei tempi normalizzato
-    point.positions.clear();
+  //   double tau = t / Tf; // asse dei tempi normalizzato
+  //   point.positions.clear();
 
-    // Costruzione del messaggio che invia il comando q(t) = q_init + (q_goal
-    // - q_init)*q(t/tf)
-    for (int i = 0; i < 7; i++) {
-      point.positions.push_back(
-          q_init[i] +
-          (q_goal[i] - q_init[i]) *
-              (6 * pow(tau, 5) - 15 * pow(tau, 4) + 10 * pow(tau, 3)));
-    }
-    point.time_from_start = ros::Duration(t);
-    joint_traj_goal.trajectory.points.push_back(point);
+  //   // Costruzione del messaggio che invia il comando q(t) = q_init + (q_goal
+  //   // - q_init)*q(t/tf)
+  //   for (int i = 0; i < 7; i++)
+  //   {
+  //     point.positions.push_back(
+  //         q_init[i] +
+  //         (q_goal[i] - q_init[i]) *
+  //             (6 * pow(tau, 5) - 15 * pow(tau, 4) + 10 * pow(tau, 3)));
+  //   }
+  //   point.time_from_start = ros::Duration(t);
+  //   joint_traj_goal.trajectory.points.push_back(point);
 
-    t = t + Ts; // tempo trascorso
-  }
+  //   t = t + Ts; // tempo trascorso
+  // }
 
-  joint_traj_ac.waitForServer();
-  std::cout << "Server attivo \n";
+  // joint_traj_ac.waitForServer();
+  // std::cout << "Server attivo \n";
 
-  joint_traj_ac.sendGoal(joint_traj_goal);
+  // joint_traj_ac.sendGoal(joint_traj_goal);
 
-  bool finished_before_timeout =
-      joint_traj_ac.waitForResult(ros::Duration(30.0));
+  // bool finished_before_timeout =
+  //     joint_traj_ac.waitForResult(ros::Duration(30.0));
 
-  if (finished_before_timeout) {
-    pick_and_place_libfranka::JointTrajectoryResultConstPtr result =
-        joint_traj_ac.getResult();
-    ROS_INFO("Action finished, success :  %d", result->success);
-  } else
-    ROS_INFO("Action did not finish before the time out.");
+  // if (finished_before_timeout)
+  // {
+  //   pick_and_place_libfranka::JointTrajectoryResultConstPtr result =
+  //       joint_traj_ac.getResult();
+  //   ROS_INFO("Action finished, success :  %d", result->success);
+  // }
+  // else
+  //   ROS_INFO("Action did not finish before the time out.");
 
-  /******** CARTESIAN TRAJECTORY ACTION ***********/
+  /******** TRAIETTORIA IN CARTESIANO ***********/
   {
 
     CartesianPoint desired_pose;

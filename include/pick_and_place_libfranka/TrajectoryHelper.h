@@ -206,17 +206,13 @@ panda_clik(std::vector<trajectory_msgs::MultiDOFJointTrajectoryPoint> &points,
   trajectory_msgs::JointTrajectoryPoint joint_point;
 
   // control variables
-  int point = 0;
   double Tf = points.back().time_from_start.toSec();
   joint_traj.reserve((int)(Tf / Ts));
-  double t = 0.0;
 
-  while (t < Tf) {
+  for (int point = 0; point < points.size(); point++) {
 
     // Save joint_point
-    joint_point.time_from_start =
-        ros::Duration(t); // before t = t + Ts so that initial_conf
-                          // will be the first joint configuration (t == 0)
+    joint_point.time_from_start = points[point].time_from_start;
     joint_point.positions.clear();
     for (int i = 0; i < 7; i++)
       joint_point.positions.push_back(qDH_k[i]);
@@ -227,49 +223,50 @@ panda_clik(std::vector<trajectory_msgs::MultiDOFJointTrajectoryPoint> &points,
     posizione_d = TooN::makeVector(points[point].transforms[0].translation.x,
                                    points[point].transforms[0].translation.y,
                                    points[point].transforms[0].translation.z);
-
+    std::cout << "pos_d = " << posizione_d << "\n";
     unit_quat_d = sun::UnitQuaternion(
         TooN::makeVector(points[point].transforms[0].rotation.w,
                          points[point].transforms[0].rotation.x,
                          points[point].transforms[0].rotation.y,
                          points[point].transforms[0].rotation.z));
 
-    qDH_k = panda.clik(qDH_k,       //<- qDH attuale
-                       posizione_d, // <- posizione desiderata
-                       unit_quat_d, // <- quaternione desiderato
-                       oldQ,        // <- quaternione al passo precedente (per
-                                    // garantire la continuità)
-                       xd,          // <- velocità in translazione desiderata
-                       w,           //<- velocità angolare desiderata
-                       mask, // <- maschera, se l'i-esimo elemento è zero
-                             // allora l'i-esima componente cartesiana non
-                             // verrà usata per il calcolo dell'errore
-                       gain, // <- guadagno del clik
-                       Ts,   // <- Ts, tempo di campionamento
-                       0.0,  // <- quadagno obj secondario
-                       TooN::Zeros(panda.getNumJoints()),
+    error[0] = 10;
+    while (TooN::norm(error) > 0.01) {
+      qDH_k = panda.clik(qDH_k,       //<- qDH attuale
+                         posizione_d, // <- posizione desiderata
+                         unit_quat_d, // <- quaternione desiderato
+                         oldQ,        // <- quaternione al passo precedente (per
+                                      // garantire la continuità)
+                         xd,          // <- velocità in translazione desiderata
+                         w,           //<- velocità angolare desiderata
+                         mask, // <- maschera, se l'i-esimo elemento è zero
+                               // allora l'i-esima componente cartesiana non
+                               // verrà usata per il calcolo dell'errore
+                         gain, // <- guadagno del clik
+                         Ts,   // <- Ts, tempo di campionamento
+                         0.0,  // <- quadagno obj secondario
+                         TooN::Zeros(panda.getNumJoints()),
 
-                       // Return Vars
-                       qdot,  // <- variabile di ritorno velocità di giunto
-                       error, //<- variabile di ritorno errore
-                       oldQ   // <- variabile di ritorno: Quaternione attuale
-                              // (N.B. qui uso oldQ  in modo da aggiornare
-                              // direttamente la variabile oldQ
-                       // e averla già pronta per la prossima iterazione)
-    );
-
-    // Update time. Do it after you have added the point so that for t = 0.0
-    // you will have the initial configuration.
-    t = t + Ts;
-
-    // If t > time_from_start of next point you have to change the desired
-    // point
-    if (t >= points[point + 1].time_from_start.toSec()) {
-      point++;
+                         // Return Vars
+                         qdot,  // <- variabile di ritorno velocità di giunto
+                         error, //<- variabile di ritorno errore
+                         oldQ   // <- variabile di ritorno: Quaternione attuale
+                                // (N.B. qui uso oldQ  in modo da aggiornare
+                                // direttamente la variabile oldQ
+                         // e averla già pronta per la prossima iterazione)
+      );
     }
+
+    std::cout << "errore: " << error << "\n";
+
+    std::cout << "Joint pos: ";
+    for (int i = 0; i < 7; i++)
+      std::cout << qDH_k[i] << " ";
+    std::cout << "\n";
   }
 
-  std::cout << "Fine del clik \n";
+  std::cout << "Fine del clik, lunghezza traiettoria:  " << joint_traj.size()
+            << " \n";
 
   return joint_traj;
 }
